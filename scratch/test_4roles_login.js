@@ -1,4 +1,9 @@
 const http = require('http');
+const dns = require('dns');
+
+try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {}
 
 function request(url, options = {}, data = null) {
     return new Promise((resolve, reject) => {

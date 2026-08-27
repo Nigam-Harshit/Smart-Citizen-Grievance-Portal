@@ -1,12 +1,4 @@
 const mongoose = require('mongoose');
-const dns = require('dns');
-
-try {
-  dns.setDefaultResultOrder('ipv4first');
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch (e) {
-  // Ignored if custom DNS servers setting fails
-}
 
 let mongoServer;
 
@@ -43,17 +35,18 @@ const connectDB = async () => {
     }
   }
 
-  // Auto-seed database if running on MongoMemoryServer or if database is empty
+  // Seeding logic:
+  // - Local MongoMemoryServer always auto-seeds for zero-setup execution.
+  // - Production/Atlas database seeds ONLY IF SEED_DEMO_DATA === 'true' is explicitly passed.
   try {
-    const User = require('../models/User');
-    const userCount = await User.countDocuments();
-    if (isMemoryServer || userCount === 0) {
-      console.log('🌱 Auto-seeding initial demo data into active database...');
+    const shouldSeed = isMemoryServer || process.env.SEED_DEMO_DATA === 'true';
+    if (shouldSeed) {
+      console.log('🌱 Seeding demo data into active database...');
       const seedData = require('../seed');
       await seedData(true); // pass true to skip re-connecting
     }
   } catch (seedErr) {
-    console.error('⚠️ Auto-seed check warning:', seedErr.message);
+    console.error('⚠️ Seed execution warning:', seedErr.message);
   }
 };
 

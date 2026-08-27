@@ -1,4 +1,9 @@
 const http = require('http');
+const dns = require('dns');
+
+try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {}
 
 function request(url, options = {}, data = null) {
     return new Promise((resolve, reject) => {
@@ -45,7 +50,7 @@ async function runE2ETests() {
     // Load server
     require('../server');
     
-    // Allow MongoMemoryServer 4 seconds to spin up and connect
+    // Allow MongoMemoryServer or MongoDB Atlas 4 seconds to spin up and connect
     await new Promise(r => setTimeout(r, 4000));
 
     // Seed database with demo accounts before tests (pass true to skip re-connecting)

@@ -1,4 +1,12 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
+
+try {
+  dns.setDefaultResultOrder('ipv4first');
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Ignored if custom DNS servers setting fails
+}
 
 let mongoServer;
 
@@ -8,12 +16,20 @@ const connectDB = async () => {
   }
 
   let isMemoryServer = false;
+  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.MONGO_URI;
+
   try {
     const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/citizen_grievance_portal';
-    const conn = await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 2000 });
+    const conn = await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 });
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.log(`⚠️ Local MongoDB not found (${error.message}). Starting MongoMemoryServer...`);
+    if (isProduction) {
+      console.error(`❌ MongoDB Atlas Connection Failed: ${error.message}`);
+      console.error('🚫 Production mode requires a valid persistent MongoDB Atlas connection. Exiting.');
+      process.exit(1);
+    }
+
+    console.log(`⚠️ Local MongoDB not found (${error.message}). Starting MongoMemoryServer for local dev...`);
     try {
       const { MongoMemoryServer } = require('mongodb-memory-server');
       mongoServer = await MongoMemoryServer.create();

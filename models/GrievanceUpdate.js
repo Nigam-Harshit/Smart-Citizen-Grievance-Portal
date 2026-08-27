@@ -13,7 +13,7 @@ const grievanceUpdateSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['Status Update', 'Officer Note', 'Citizen Response', 'Escalation', 'Resolution'],
+        enum: ['Status Update', 'Officer Note', 'Officer Field Note', 'Citizen Response', 'Escalation', 'Resolution'],
         required: true
     },
     notes: {

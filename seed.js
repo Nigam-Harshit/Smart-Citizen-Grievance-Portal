@@ -350,11 +350,19 @@ const seedData = async () => {
         console.log('🔑 Citizen: citizen.rajesh@gmail.com / Password123!');
         console.log('-------------------------------\n');
 
-        process.exit(0);
+        if (require.main === module) {
+            process.exit(0);
+        }
     } catch (err) {
         console.error('Error during seeding:', err);
-        process.exit(1);
+        if (require.main === module) {
+            process.exit(1);
+        }
     }
 };
 
-seedData();
+if (require.main === module) {
+    seedData();
+}
+
+module.exports = seedData;

@@ -1,0 +1,32 @@
+:root {
+    /* MMSolutions - Dark Theme Palette */
+    --bg-primary: #0f172a;
+    /* Slate 900 */
+    --bg-secondary: #1e293b;
+    /* Slate 800 */
+    --bg-glass: rgba(30, 41, 59, 0.7);
+    /* Glass Effect */
+
+    --text-primary: #f8fafc;
+    /* Slate 50 */
+    --text-secondary: #94a3b8;
+    /* Slate 400 */
+
+    --accent-primary: #6366f1;
+    /* Indigo 500 */
+    --accent-hover: #4f46e5;
+    /* Indigo 600 */
+    --accent-glow: rgba(99, 102, 241, 0.5);
+
+    --success: #22c55e;
+    /* Green 500 */
+    --warning: #f59e0b;
+    /* Amber 500 */
+    --danger: #ef4444;
+    /* Red 500 */
+
+    --border-color: #334155;
+    /* Slate 700 */
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --glow-shadow: 0 0 15px var(--accent-glow);
+}

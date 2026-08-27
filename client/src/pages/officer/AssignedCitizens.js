@@ -35,35 +35,31 @@ const AssignedCitizens = () => {
         c.address?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const getRiskStyle = (risk) => {
-        if (risk === 'High') return { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' };
-        if (risk === 'Medium') return { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' };
-        return { bg: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' };
-    };
-
     return (
         <div style={{ display: 'flex' }}>
             <Sidebar />
-            <div className="main-content" style={{ flex: 1, padding: '2rem', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+            <div className="main-content">
                 <Topbar title="Assigned Citizens Portfolio" />
 
-                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', marginBottom: '2rem' }}>
+                <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px', marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-                        <h2 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span>👥</span> Assigned Citizens ({filteredCitizens.length})
                         </h2>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                             <ExportButtons data={filteredCitizens} filename="Assigned_Citizens" />
-                            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '2px' }}>
+                            <div style={{ display: 'flex', background: 'rgba(11, 18, 32, 0.6)', borderRadius: '8px', padding: '2px', border: '1px solid var(--glass-border)' }}>
                                 <button
                                     onClick={() => setViewMode('grid')}
                                     style={{
                                         padding: '0.4rem 0.8rem',
-                                        background: viewMode === 'grid' ? '#6366f1' : 'transparent',
-                                        color: 'white',
+                                        background: viewMode === 'grid' ? 'var(--accent-amber)' : 'transparent',
+                                        color: viewMode === 'grid' ? '#0B1220' : 'var(--text-muted)',
                                         border: 'none',
                                         borderRadius: '6px',
-                                        cursor: 'pointer'
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.8rem'
                                     }}
                                 >
                                     ▦ Grid
@@ -72,11 +68,13 @@ const AssignedCitizens = () => {
                                     onClick={() => setViewMode('table')}
                                     style={{
                                         padding: '0.4rem 0.8rem',
-                                        background: viewMode === 'table' ? '#6366f1' : 'transparent',
-                                        color: 'white',
+                                        background: viewMode === 'table' ? 'var(--accent-amber)' : 'transparent',
+                                        color: viewMode === 'table' ? '#0B1220' : 'var(--text-muted)',
                                         border: 'none',
                                         borderRadius: '6px',
-                                        cursor: 'pointer'
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.8rem'
                                     }}
                                 >
                                     ≡ Table
@@ -90,119 +88,95 @@ const AssignedCitizens = () => {
                         placeholder="Search citizens by name, contact, address..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '0.7rem 1rem',
-                            background: 'rgba(0,0,0,0.3)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '8px',
-                            color: 'white',
-                            outline: 'none',
-                            marginBottom: '1.5rem'
-                        }}
+                        style={{ marginBottom: '1.5rem' }}
                     />
 
                     {loading ? (
-                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading citizen directory...</div>
+                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading citizen portfolio...</div>
                     ) : filteredCitizens.length === 0 ? (
-                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No assigned citizens match your search.</div>
+                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>No assigned citizens match your search.</div>
                     ) : viewMode === 'grid' ? (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                            {filteredCitizens.map(c => {
-                                const riskStyle = getRiskStyle(c.escalationRisk);
-                                return (
-                                    <div key={c._id} className="glass-card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <div style={{
-                                                    width: '42px',
-                                                    height: '42px',
-                                                    borderRadius: '50%',
-                                                    background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    color: 'white',
-                                                    fontWeight: 'bold',
-                                                    fontSize: '1.1rem'
-                                                }}>
-                                                    {c.name?.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <h3 style={{ margin: 0, color: 'white', fontSize: '1.05rem' }}>{c.name}</h3>
-                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{c.email}</div>
-                                                </div>
-                                            </div>
-                                            <span style={{
-                                                padding: '0.2rem 0.6rem',
-                                                borderRadius: '12px',
-                                                fontSize: '0.7rem',
+                            {filteredCitizens.map(c => (
+                                <div key={c._id} className="glass-card glass-card-interactive stagger-in" style={{ padding: '1.5rem', borderRadius: '12px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{
+                                                width: '42px',
+                                                height: '42px',
+                                                borderRadius: '50%',
+                                                background: 'var(--accent-amber)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: '#0B1220',
                                                 fontWeight: 'bold',
-                                                background: riskStyle.bg,
-                                                color: riskStyle.color
+                                                fontSize: '1.1rem'
                                             }}>
-                                                {c.escalationRisk || 'Low'} Risk
-                                            </span>
+                                                {c.name?.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{c.name}</h3>
+                                                <div className="mono-data" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{c.email}</div>
+                                            </div>
                                         </div>
-
-                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                                            <div>📞 <strong>Contact:</strong> {c.contact}</div>
-                                            <div>🏠 <strong>Address:</strong> {c.address || 'N/A'}</div>
-                                        </div>
-
-                                        <Link to={`/citizen-profile/${c._id}`} style={{
-                                            display: 'block',
-                                            padding: '0.6rem',
-                                            textAlign: 'center',
-                                            background: 'rgba(99, 102, 241, 0.15)',
-                                            color: '#818cf8',
-                                            borderRadius: '8px',
-                                            textDecoration: 'none',
-                                            fontWeight: 'bold',
-                                            fontSize: '0.85rem'
-                                        }}>
-                                            View 360 Profile →
-                                        </Link>
+                                        <span className={`status-pill ${c.escalationRisk === 'High' ? 'status-critical' : 'status-resolved'}`}>
+                                            {c.escalationRisk || 'Low'} Risk
+                                        </span>
                                     </div>
-                                );
-                            })}
+
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                        <div>📞 <strong>Contact:</strong> <span className="mono-data">{c.contact}</span></div>
+                                        <div>🏠 <strong>Address:</strong> {c.address || 'N/A'}</div>
+                                    </div>
+
+                                    <Link to={`/citizen-profile/${c._id}`} className="btn-municipal-glass" style={{
+                                        display: 'block',
+                                        padding: '0.5rem',
+                                        textAlign: 'center',
+                                        borderRadius: '8px',
+                                        textDecoration: 'none',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.82rem'
+                                    }}>
+                                        View 360 Profile →
+                                    </Link>
+                                </div>
+                            ))}
                         </div>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', color: 'white', textAlign: 'left' }}>
+                            <table className="table-glass">
                                 <thead>
-                                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                                        <th style={{ padding: '1rem' }}>Citizen Name</th>
-                                        <th style={{ padding: '1rem' }}>Contact</th>
-                                        <th style={{ padding: '1rem' }}>Address</th>
-                                        <th style={{ padding: '1rem' }}>Escalation Risk</th>
-                                        <th style={{ padding: '1rem' }}>Action</th>
+                                    <tr>
+                                        <th>Citizen Name & Email</th>
+                                        <th>Contact Phone</th>
+                                        <th>Residential Address</th>
+                                        <th>Escalation Risk</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredCitizens.map(c => {
-                                        const riskStyle = getRiskStyle(c.escalationRisk);
-                                        return (
-                                            <tr key={c._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <div style={{ fontWeight: 'bold' }}>{c.name}</div>
-                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{c.email}</div>
-                                                </td>
-                                                <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{c.contact}</td>
-                                                <td style={{ padding: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{c.address || 'N/A'}</td>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <span style={{ padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', background: riskStyle.bg, color: riskStyle.color }}>
-                                                        {c.escalationRisk || 'Low'}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <Link to={`/citizen-profile/${c._id}`} style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                                                        View Profile →
-                                                    </Link>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                    {filteredCitizens.map(c => (
+                                        <tr key={c._id} className="table-row-hover">
+                                            <td>
+                                                <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{c.name}</div>
+                                                <div className="mono-data" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{c.email}</div>
+                                            </td>
+                                            <td className="mono-data" style={{ fontSize: '0.85rem' }}>{c.contact}</td>
+                                            <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{c.address || 'N/A'}</td>
+                                            <td>
+                                                <span className={`status-pill ${c.escalationRisk === 'High' ? 'status-critical' : 'status-resolved'}`}>
+                                                    {c.escalationRisk || 'Low'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <Link to={`/citizen-profile/${c._id}`} style={{ color: 'var(--accent-amber)', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.82rem' }}>
+                                                    View 360 Profile →
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>

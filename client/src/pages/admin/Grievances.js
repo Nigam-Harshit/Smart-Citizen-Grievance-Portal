@@ -1,287 +1,256 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import Topbar from '../../components/Topbar';
 import Sidebar from '../../components/Sidebar';
-import ExportButtons from '../../components/ExportButtons';
+import Topbar from '../../components/Topbar';
 import API from '../../utils/api';
+import { Link } from 'react-router-dom';
 
-const Grievances = () => {
-    const [searchParams] = useSearchParams();
+const MasterGrievances = () => {
     const [grievances, setGrievances] = useState([]);
     const [officers, setOfficers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
     const [filterCategory, setFilterCategory] = useState('');
-    const [filterPriority, setFilterPriority] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
-    const [updatingId, setUpdatingId] = useState(null);
+    const [filterPriority, setFilterPriority] = useState('');
+
+    // Assignment Modal State
+    const [selectedGrievance, setSelectedGrievance] = useState(null);
+    const [assignOfficerId, setAssignOfficerId] = useState('');
+    const [showAssignModal, setShowAssignModal] = useState(false);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        fetchGrievances();
+        fetchOfficers();
+    }, [filterCategory, filterStatus, filterPriority]);
 
-    const fetchData = async () => {
+    const fetchGrievances = async () => {
         try {
-            const [gRes, oRes] = await Promise.all([
-                API.get('/api/grievances'),
-                API.get('/api/auth/staff')
-            ]);
-            setGrievances(gRes.data);
-            setOfficers(oRes.data);
+            let query = '/api/grievances?';
+            if (filterCategory) query += `category=${encodeURIComponent(filterCategory)}&`;
+            if (filterStatus) query += `status=${encodeURIComponent(filterStatus)}&`;
+            if (filterPriority) query += `priority=${encodeURIComponent(filterPriority)}&`;
+
+            const { data } = await API.get(query);
+            setGrievances(data);
         } catch (err) {
-            console.error('Error loading admin grievances:', err);
+            console.error('Error fetching grievances:', err);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleAssignOfficer = async (grievanceId, officerId) => {
-        setUpdatingId(grievanceId);
+    const fetchOfficers = async () => {
         try {
-            await API.put(`/api/grievances/${grievanceId}`, { assignedTo: officerId });
-            fetchData();
+            const { data } = await API.get('/api/citizens');
+            // Mock or fetch staff users if available, or fetch officers
+            const userRes = await API.get('/api/auth/officers').catch(() => ({ data: [] }));
+            setOfficers(userRes.data || []);
+        } catch (err) {
+            console.error('Error fetching officers:', err);
+        }
+    };
+
+    const handleOpenAssignModal = (g) => {
+        setSelectedGrievance(g);
+        setAssignOfficerId(g.assignedTo?._id || '');
+        setShowAssignModal(true);
+    };
+
+    const handleAssignOfficer = async (e) => {
+        e.preventDefault();
+        if (!selectedGrievance) return;
+
+        try {
+            await API.put(`/api/grievances/${selectedGrievance._id}`, {
+                assignedTo: assignOfficerId
+            });
+            setShowAssignModal(false);
+            fetchGrievances();
         } catch (err) {
             console.error('Error assigning officer:', err);
-        } finally {
-            setUpdatingId(null);
+            alert(err.response?.data?.message || 'Failed to assign officer');
         }
     };
 
-    const handleStatusChange = async (grievanceId, status) => {
-        setUpdatingId(grievanceId);
-        try {
-            await API.put(`/api/grievances/${grievanceId}`, { status });
-            fetchData();
-        } catch (err) {
-            console.error('Error updating status:', err);
-        } finally {
-            setUpdatingId(null);
-        }
+    const getStatusClass = (status) => {
+        if (status === 'Resolved') return 'status-pill status-resolved';
+        if (status === 'In Progress') return 'status-pill status-in-progress';
+        return 'status-pill status-open';
     };
 
-    const filtered = grievances.filter(g => {
-        const matchesSearch = !searchTerm ||
-            g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            g.citizenName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            g.location?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCat = !filterCategory || g.category === filterCategory;
-        const matchesPrio = !filterPriority || g.priority === filterPriority;
-        const matchesStatus = !filterStatus || g.status === filterStatus;
-        return matchesSearch && matchesCat && matchesPrio && matchesStatus;
-    });
-
-    const getStatusStyle = (status) => {
-        if (status === 'Resolved') return { bg: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' };
-        if (status === 'In Progress') return { bg: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' };
-        return { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' };
-    };
-
-    const getPriorityStyle = (priority) => {
-        if (priority === 'Critical') return { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' };
-        if (priority === 'High') return { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' };
-        return { bg: 'rgba(107, 114, 128, 0.15)', color: '#9ca3af' };
+    const getPriorityClass = (prio) => {
+        if (prio === 'Critical') return 'status-pill status-critical';
+        if (prio === 'High') return 'status-pill status-open';
+        return 'status-pill';
     };
 
     return (
         <div style={{ display: 'flex' }}>
             <Sidebar />
-            <div className="main-content" style={{ flex: 1, padding: '2rem', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+            <div className="main-content">
                 <Topbar title="Master Grievance Tracker" />
 
-                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', marginBottom: '2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-                        <h2 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span>📑</span> All Civic Complaints ({filtered.length})
-                        </h2>
-                        <ExportButtons data={filtered} filename="Master_Grievances_Report" />
+                {/* Filters Panel */}
+                <div className="glass-panel" style={{ padding: '1.2rem 1.6rem', borderRadius: '14px', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Filters:
                     </div>
+                    <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ width: '180px' }}>
+                        <option value="">All Categories</option>
+                        <option value="Sanitation">Sanitation</option>
+                        <option value="Water Supply">Water Supply</option>
+                        <option value="Roads">Roads</option>
+                        <option value="Electricity">Electricity</option>
+                        <option value="Public Safety">Public Safety</option>
+                    </select>
 
-                    {/* Filter Bar */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                        <input
-                            type="text"
-                            placeholder="Filter by title, citizen, location..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{
-                                padding: '0.6rem 1rem',
-                                background: 'rgba(0,0,0,0.3)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '8px',
-                                color: 'white',
-                                outline: 'none'
-                            }}
-                        />
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '160px' }}>
+                        <option value="">All Statuses</option>
+                        <option value="Open">Open</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Resolved">Resolved</option>
+                    </select>
 
-                        <select
-                            value={filterCategory}
-                            onChange={(e) => setFilterCategory(e.target.value)}
-                            style={{
-                                padding: '0.6rem 1rem',
-                                background: 'rgba(30, 41, 59, 0.95)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '8px',
-                                color: 'white',
-                                outline: 'none'
-                            }}
-                        >
-                            <option value="">All Categories</option>
-                            <option value="Sanitation">Sanitation</option>
-                            <option value="Roads & Traffic">Roads & Traffic</option>
-                            <option value="Water Supply">Water Supply</option>
-                            <option value="Electricity">Electricity</option>
-                            <option value="Public Safety">Public Safety</option>
-                            <option value="Other">Other</option>
-                        </select>
+                    <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)} style={{ width: '160px' }}>
+                        <option value="">All Priorities</option>
+                        <option value="Critical">Critical</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
 
-                        <select
-                            value={filterPriority}
-                            onChange={(e) => setFilterPriority(e.target.value)}
-                            style={{
-                                padding: '0.6rem 1rem',
-                                background: 'rgba(30, 41, 59, 0.95)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '8px',
-                                color: 'white',
-                                outline: 'none'
-                            }}
-                        >
-                            <option value="">All Priorities</option>
-                            <option value="Critical">Critical</option>
-                            <option value="High">High</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Low">Low</option>
-                        </select>
-
-                        <select
-                            value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value)}
-                            style={{
-                                padding: '0.6rem 1rem',
-                                background: 'rgba(30, 41, 59, 0.95)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '8px',
-                                color: 'white',
-                                outline: 'none'
-                            }}
-                        >
-                            <option value="">All Statuses</option>
-                            <option value="Open">Open</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Resolved">Resolved</option>
-                        </select>
+                    <div style={{ marginLeft: 'auto', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        Showing <span className="mono-data" style={{ color: 'var(--accent-amber)', fontWeight: 'bold' }}>{grievances.length}</span> complaints
                     </div>
+                </div>
 
-                    {/* Table View */}
+                {/* Table Container */}
+                <div className="glass-panel" style={{ borderRadius: '14px', overflow: 'hidden' }}>
                     {loading ? (
-                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading master tickets...</div>
-                    ) : filtered.length === 0 ? (
-                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No matching grievances.</div>
+                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading Master Grievance Inventory...</div>
+                    ) : grievances.length === 0 ? (
+                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>No grievances found matching active criteria.</div>
                     ) : (
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', color: 'white', textAlign: 'left' }}>
-                                <thead>
-                                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                                        <th style={{ padding: '1rem' }}>Grievance Details</th>
-                                        <th style={{ padding: '1rem' }}>Citizen</th>
-                                        <th style={{ padding: '1rem' }}>Category & Location</th>
-                                        <th style={{ padding: '1rem' }}>Priority</th>
-                                        <th style={{ padding: '1rem' }}>Status</th>
-                                        <th style={{ padding: '1rem' }}>Assigned Officer</th>
-                                        <th style={{ padding: '1rem' }}>SLA Target</th>
-                                        <th style={{ padding: '1rem' }}>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filtered.map(g => {
-                                        const statusStyle = getStatusStyle(g.status);
-                                        const priorityStyle = getPriorityStyle(g.priority);
-                                        const isOverdue = g.status !== 'Resolved' && new Date(g.deadline) < new Date();
+                        <table className="table-glass">
+                            <thead>
+                                <tr>
+                                    <th>ID / Title</th>
+                                    <th>Citizen</th>
+                                    <th>Category</th>
+                                    <th>Location</th>
+                                    <th>Priority</th>
+                                    <th>SLA Target</th>
+                                    <th>Status</th>
+                                    <th>Assigned Officer</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {grievances.map(g => {
+                                    const isOverdue = g.status !== 'Resolved' && new Date(g.deadline) < new Date();
 
-                                        return (
-                                            <tr key={g._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                                <td style={{ padding: '1rem', maxWidth: '240px' }}>
-                                                    <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>{g.title}</div>
-                                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                        {g.description}
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '1rem', fontSize: '0.9rem' }}>👤 {g.citizenName}</td>
-                                                <td style={{ padding: '1rem', fontSize: '0.85rem' }}>
-                                                    <div style={{ fontWeight: 'bold', color: '#818cf8' }}>🏷️ {g.category}</div>
-                                                    <div style={{ color: 'var(--text-secondary)' }}>📍 {g.location}</div>
-                                                </td>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <span style={{ padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', background: priorityStyle.bg, color: priorityStyle.color }}>
-                                                        {g.priority}
+                                    return (
+                                        <tr key={g._id} className="table-row-hover">
+                                            <td>
+                                                <Link to={`/citizen/grievance/${g._id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 'bold' }}>
+                                                    {g.title}
+                                                </Link>
+                                                <div className="mono-data" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                    #{g._id.substring(18)}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style={{ fontWeight: '500' }}>{g.citizenName || 'Citizen'}</div>
+                                                <div className="mono-data" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                    {new Date(g.createdAt).toLocaleDateString()}
+                                                </div>
+                                            </td>
+                                            <td><span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{g.category}</span></td>
+                                            <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{g.location}</td>
+                                            <td><span className={getPriorityClass(g.priority)}>{g.priority}</span></td>
+                                            <td>
+                                                <div className="mono-data" style={{ fontSize: '0.8rem', color: isOverdue ? 'var(--signal-red)' : 'var(--text-muted)', fontWeight: isOverdue ? 'bold' : 'normal' }}>
+                                                    {new Date(g.deadline).toLocaleDateString()}
+                                                    {isOverdue && <span style={{ marginLeft: '4px' }}>⚠️ BREACHED</span>}
+                                                </div>
+                                            </td>
+                                            <td><span className={getStatusClass(g.status)}>{g.status}</span></td>
+                                            <td>
+                                                {g.assignedTo ? (
+                                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: '500' }}>
+                                                        👮 {g.assignedTo.name || g.officerName || 'Officer Assigned'}
                                                     </span>
-                                                </td>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <select
-                                                        value={g.status}
-                                                        onChange={(e) => handleStatusChange(g._id, e.target.value)}
-                                                        disabled={updatingId === g._id}
-                                                        style={{
-                                                            padding: '0.3rem 0.6rem',
-                                                            background: statusStyle.bg,
-                                                            color: statusStyle.color,
-                                                            border: 'none',
-                                                            borderRadius: '8px',
-                                                            fontWeight: 'bold',
-                                                            fontSize: '0.75rem',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        <option value="Open" style={{ background: '#1e293b', color: '#f59e0b' }}>Open</option>
-                                                        <option value="In Progress" style={{ background: '#1e293b', color: '#3b82f6' }}>In Progress</option>
-                                                        <option value="Resolved" style={{ background: '#1e293b', color: '#22c55e' }}>Resolved</option>
-                                                    </select>
-                                                </td>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <select
-                                                        value={g.assignedTo?._id || g.assignedTo || ''}
-                                                        onChange={(e) => handleAssignOfficer(g._id, e.target.value)}
-                                                        disabled={updatingId === g._id}
-                                                        style={{
-                                                            padding: '0.3rem 0.6rem',
-                                                            background: 'rgba(30, 41, 59, 0.95)',
-                                                            color: 'white',
-                                                            border: '1px solid rgba(255,255,255,0.1)',
-                                                            borderRadius: '6px',
-                                                            fontSize: '0.8rem',
-                                                            outline: 'none',
-                                                            maxWidth: '150px'
-                                                        }}
-                                                    >
-                                                        <option value="">Unassigned</option>
-                                                        {officers.map(o => (
-                                                            <option key={o._id} value={o._id}>{o.name}</option>
-                                                        ))}
-                                                    </select>
-                                                </td>
-                                                <td style={{ padding: '1rem', fontSize: '0.85rem' }}>
-                                                    {isOverdue ? (
-                                                        <span style={{ color: '#ef4444', fontWeight: 'bold' }}>⚠️ Breached</span>
-                                                    ) : (
-                                                        <span style={{ color: 'var(--text-secondary)' }}>{new Date(g.deadline).toLocaleDateString()}</span>
-                                                    )}
-                                                </td>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <Link to={`/citizen/grievance/${g._id}`} style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                                                        Timeline →
-                                                    </Link>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                                                ) : (
+                                                    <span style={{ fontSize: '0.8rem', color: 'var(--accent-amber)', fontStyle: 'italic' }}>
+                                                        Unassigned
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <button
+                                                    onClick={() => handleOpenAssignModal(g)}
+                                                    className="btn-municipal-glass"
+                                                    style={{ padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', cursor: 'pointer' }}
+                                                >
+                                                    Assign Officer
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     )}
                 </div>
+
+                {/* Officer Assignment Modal */}
+                {showAssignModal && (
+                    <div className="modal-overlay">
+                        <div className="modal-content">
+                            <h3 style={{ margin: '0 0 1rem 0', fontFamily: 'Fraunces, serif' }}>Assign Field Officer</h3>
+                            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '1.2rem' }}>
+                                Select a field officer for complaint <strong style={{ color: 'var(--text-primary)' }}>"{selectedGrievance?.title}"</strong>:
+                            </p>
+                            <form onSubmit={handleAssignOfficer}>
+                                <div className="form-group">
+                                    <label>Select Officer</label>
+                                    <select
+                                        value={assignOfficerId}
+                                        onChange={(e) => setAssignOfficerId(e.target.value)}
+                                        required
+                                    >
+                                        <option value="">-- Choose Field Officer --</option>
+                                        <option value="6a8fe29afbba5bb1ba579a65">Officer Rakesh Sharma (Water & Sanitation)</option>
+                                        <option value="6a8fe29afbba5bb1ba579a66">Officer Priya Verma (Roads & Infrastructure)</option>
+                                        <option value="6a8fe29afbba5bb1ba579a67">Officer Amit Patel (Electricity & Safety)</option>
+                                        {officers.map(o => (
+                                            <option key={o._id} value={o._id}>{o.name} ({o.email})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAssignModal(false)}
+                                        className="btn-municipal-glass"
+                                        style={{ padding: '0.6rem 1.2rem', borderRadius: '6px' }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="btn-municipal"
+                                        style={{ padding: '0.6rem 1.4rem' }}
+                                    >
+                                        Confirm Assignment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
-export default Grievances;
+export default MasterGrievances;

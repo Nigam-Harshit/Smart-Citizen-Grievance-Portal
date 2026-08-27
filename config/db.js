@@ -3,6 +3,10 @@ const mongoose = require('mongoose');
 let mongoServer;
 
 const connectDB = async () => {
+  if (mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
+    return;
+  }
+
   let isMemoryServer = false;
   try {
     const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/citizen_grievance_portal';

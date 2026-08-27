@@ -1,32 +1,447 @@
+/* ==========================================================================
+   FROSTED MUNICIPAL GLASS DESIGN SYSTEM
+   ========================================================================== */
+
 :root {
-    /* MMSolutions - Dark Theme Palette */
-    --bg-primary: #0f172a;
-    /* Slate 900 */
-    --bg-secondary: #1e293b;
-    /* Slate 800 */
-    --bg-glass: rgba(30, 41, 59, 0.7);
-    /* Glass Effect */
+  /* Color Palette Tokens */
+  --bg-base: #0B1220;           /* Deep slate-blue-black canvas */
+  --bg-elevated: #101826;       /* Slightly lighter panel base, pre-glass */
+  --glass-tint: rgba(148, 163, 184, 0.06);  /* Cool slate glass fill */
+  --glass-border: rgba(203, 213, 225, 0.14); /* Hairline edge on glass */
+  
+  --accent-amber: #C9962C;      /* Official stamp gold */
+  --accent-amber-dim: rgba(201, 150, 44, 0.16); /* Amber glow/background wash */
+  
+  --signal-red: #C0433B;        /* Critical/breached - desaturated brick-red */
+  --signal-blue: #4A7FBF;       /* In-progress - cool steel-blue */
+  --signal-green: #4F9D6E;      /* Resolved - muted green */
+  
+  --text-primary: #E8ECF1;
+  --text-muted: #8B96A8;
 
-    --text-primary: #f8fafc;
-    /* Slate 50 */
-    --text-secondary: #94a3b8;
-    /* Slate 400 */
+  /* Aliases for system compatibility */
+  --bg-primary: var(--bg-base);
+  --bg-secondary: var(--bg-elevated);
+  --bg-glass: var(--glass-tint);
+  --border-color: var(--glass-border);
+  --accent-primary: var(--accent-amber);
+  --accent-hover: #b08222;
+  --accent-glow: var(--accent-amber-dim);
+  --success: var(--signal-green);
+  --warning: var(--accent-amber);
+  --danger: var(--signal-red);
 
-    --accent-primary: #6366f1;
-    /* Indigo 500 */
-    --accent-hover: #4f46e5;
-    /* Indigo 600 */
-    --accent-glow: rgba(99, 102, 241, 0.5);
+  /* Global Mouse Light Source Tracking (Updated via JS) */
+  --mouse-x: 50vw;
+  --mouse-y: 50vh;
+}
 
-    --success: #22c55e;
-    /* Green 500 */
-    --warning: #f59e0b;
-    /* Amber 500 */
-    --danger: #ef4444;
-    /* Red 500 */
+/* ==========================================================================
+   Global Resets & Civic Canvas
+   ========================================================================== */
 
-    --border-color: #334155;
-    /* Slate 700 */
-    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --glow-shadow: 0 0 15px var(--accent-glow);
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Civic Seal Background Watermark (Refraction Layer) */
+body::before {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 55%;
+  transform: translate(-50%, -50%);
+  width: 900px;
+  height: 900px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 500' fill='none' stroke='%238B96A8' stroke-width='1.5' stroke-opacity='0.04'%3E%3Ccircle cx='250' cy='250' r='230'/%3E%3Ccircle cx='250' cy='250' r='180' stroke-dasharray='8 8'/%3E%3Cpolygon points='250,90 295,190 405,190 315,255 350,360 250,295 150,360 185,255 95,190 205,190'/%3E%3Ccircle cx='250' cy='250' r='60'/%3E%3Cpath d='M250,110 L250,390 M110,250 L390,250'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ==========================================================================
+   Typography Rules
+   ========================================================================== */
+
+h1, h2, h3, h4, .serif-heading {
+  font-family: 'Fraunces', 'IBM Plex Sans', serif;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.mono-data,
+.mono-number,
+.mono-badge,
+code,
+pre,
+.dashboard-stat-number,
+.timestamp-text {
+  font-family: 'IBM Plex Mono', monospace !important;
+}
+
+/* ==========================================================================
+   Frosted Municipal Glass Component Styles
+   ========================================================================== */
+
+.glass-panel,
+.glass-card {
+  position: relative;
+  background: var(--glass-tint);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Ambient Specular Sheen (Shared Light Source) */
+.glass-panel::before,
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    700px circle at var(--mouse-x) var(--mouse-y),
+    rgba(232, 236, 241, 0.08),
+    transparent 45%
+  );
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Actionable Card Hover Effect */
+.glass-card-interactive {
+  cursor: pointer;
+}
+
+.glass-card-interactive:hover {
+  transform: translateY(-3px);
+  border-color: rgba(232, 236, 241, 0.3);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 0 25px var(--accent-amber-dim);
+}
+
+.glass-card-interactive:active,
+button:active {
+  transform: scale(0.97);
+}
+
+/* ==========================================================================
+   Staggered Load-In Ripple
+   ========================================================================== */
+
+.stagger-in {
+  animation: staggerLoadIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes staggerLoadIn {
+  0% {
+    transform: scale(0.98);
+    filter: blur(6px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    filter: blur(0px);
+    opacity: 1;
+  }
+}
+
+.stagger-in:nth-child(1) { animation-delay: 40ms; }
+.stagger-in:nth-child(2) { animation-delay: 80ms; }
+.stagger-in:nth-child(3) { animation-delay: 120ms; }
+.stagger-in:nth-child(4) { animation-delay: 160ms; }
+.stagger-in:nth-child(5) { animation-delay: 200ms; }
+
+/* ==========================================================================
+   Status Badges & Morph Pill Animation
+   ========================================================================== */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(8px);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.35s ease, border-color 0.35s ease;
+}
+
+.status-pill.status-open {
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+  background: var(--accent-amber-dim);
+}
+
+.status-pill.status-in-progress {
+  border-color: var(--signal-blue);
+  color: var(--signal-blue);
+  background: rgba(74, 127, 191, 0.15);
+}
+
+.status-pill.status-resolved {
+  border-color: var(--signal-green);
+  color: var(--signal-green);
+  background: rgba(79, 157, 110, 0.15);
+}
+
+.status-pill.status-critical {
+  border-color: var(--signal-red);
+  color: var(--signal-red);
+  background: rgba(192, 67, 59, 0.15);
+}
+
+/* Morph Effect on Status Transition */
+.status-pill-morph {
+  animation: statusMorph 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes statusMorph {
+  0% { transform: scaleX(1); }
+  50% { transform: scaleX(1.08); }
+  100% { transform: scaleX(1); }
+}
+
+/* ==========================================================================
+   Risk Engine Light-Sweep Scan Animation (Signature Moment)
+   ========================================================================== */
+
+.risk-scan-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.risk-scan-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.risk-scan-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(201, 150, 44, 0.4) 50%,
+    rgba(232, 236, 241, 0.6) 70%,
+    transparent 100%
+  );
+  transform: skewX(-20deg);
+  animation: riskSweep 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes riskSweep {
+  0% { left: -100%; }
+  100% { left: 160%; }
+}
+
+/* ==========================================================================
+   Top Glass-Rod Loading Bar
+   ========================================================================== */
+
+.glass-rod-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(11, 18, 32, 0.8);
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.glass-rod-loader::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent-amber),
+    #E8ECF1,
+    transparent
+  );
+  box-shadow: 0 0 10px var(--accent-amber);
+  animation: glassRodMove 1.4s ease-in-out infinite;
+}
+
+@keyframes glassRodMove {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+/* ==========================================================================
+   Buttons & Action Controls
+   ========================================================================== */
+
+.btn-municipal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0.75rem 1.6rem;
+  border-radius: 10px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #0B1220;
+  background: var(--accent-amber);
+  border: 1px solid rgba(232, 236, 241, 0.3);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: 0 4px 14px rgba(201, 150, 44, 0.25);
+  overflow: hidden;
+}
+
+.btn-municipal:hover {
+  background: #d4a031;
+  box-shadow: 0 6px 20px rgba(201, 150, 44, 0.4);
+}
+
+.btn-municipal:active {
+  transform: scale(0.97);
+}
+
+.btn-municipal-glass {
+  background: var(--glass-tint);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  box-shadow: none;
+}
+
+.btn-municipal-glass:hover {
+  background: rgba(203, 213, 225, 0.12);
+  border-color: rgba(232, 236, 241, 0.3);
+}
+
+/* Click Ripple Effect */
+.btn-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(201, 150, 44, 0.4);
+  transform: scale(0);
+  animation: btnRipple 0.5s ease-out;
+  pointer-events: none;
+}
+
+@keyframes btnRipple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   Sidebar Navigation (Frosted Panel)
+   ========================================================================== */
+
+.sidebar-glass {
+  background: rgba(16, 24, 38, 0.85) !important;
+  backdrop-filter: blur(24px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
+  border-right: 1px solid var(--glass-border) !important;
+}
+
+.nav-item-active {
+  color: var(--accent-amber) !important;
+  background: var(--accent-amber-dim) !important;
+  border-left: 3px solid var(--accent-amber) !important;
+  border-radius: 0 8px 8px 0 !important;
+}
+
+/* ==========================================================================
+   Tables & Data Grid
+   ========================================================================== */
+
+.table-glass {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text-primary);
+}
+
+.table-glass th {
+  padding: 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(11, 18, 32, 0.4);
+}
+
+.table-glass td {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.06);
+  font-size: 0.9rem;
+}
+
+.table-glass tr.table-row-hover:hover {
+  background: rgba(232, 236, 241, 0.04);
+  transform: translateY(-1px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ==========================================================================
+   Reduced Motion Fallback
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-panel::before,
+  .glass-card::before,
+  .risk-scan-overlay::after,
+  .glass-rod-loader::after {
+    animation: none !important;
+    transform: none !important;
+    display: none !important;
+  }
+
+  .glass-card-interactive:hover {
+    transform: none !important;
+  }
+
+  .stagger-in {
+    animation: opacityFade 0.2s ease forwards !important;
+  }
+
+  @keyframes opacityFade {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
 }

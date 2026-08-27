@@ -24,73 +24,69 @@ const Register = () => {
     };
 
     return (
-        <div className="auth-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: '2rem' }}>
-            <div className="auth-form glass-card" style={{ maxWidth: '480px', width: '100%', padding: '2.5rem', borderRadius: '16px' }}>
+        <div className="auth-container">
+            <div className="auth-form glass-panel stagger-in" style={{ maxWidth: '480px' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                    <h1 style={{ color: 'var(--accent-primary)', margin: '0 0 0.5rem 0', fontSize: '1.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                        <span>🏛️</span> Citizen Portal
+                    <h1 style={{ color: 'var(--text-primary)', margin: '0 0 0.5rem 0', fontSize: '1.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                        <span>🏛️</span> <span style={{ fontFamily: 'Fraunces, serif' }}>Citizen Portal</span>
                     </h1>
-                    <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.95rem' }}>
+                    <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.88rem' }}>
                         Register for a Citizen Grievance & Tracking Account
                     </p>
                 </div>
 
                 {error && (
-                    <div style={{ padding: '0.8rem', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                    <div style={{ padding: '0.8rem', background: 'rgba(192, 67, 59, 0.15)', color: 'var(--signal-red)', border: '1px solid rgba(192, 67, 59, 0.3)', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
                         {error}
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
                     <div className="form-group">
-                        <label style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem', fontSize: '0.88rem' }}>Full Name *</label>
+                        <label>Full Name *</label>
                         <input
                             type="text"
                             placeholder="Rajesh Kumar"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             required
-                            style={{ width: '100%', padding: '0.7rem 1rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem', fontSize: '0.88rem' }}>Email Address *</label>
+                        <label>Email Address *</label>
                         <input
                             type="email"
                             placeholder="rajesh@example.com"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             required
-                            style={{ width: '100%', padding: '0.7rem 1rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem', fontSize: '0.88rem' }}>Contact Phone *</label>
+                        <label>Contact Phone *</label>
                         <input
                             type="text"
                             placeholder="+91 98100 12345"
                             value={formData.phone}
                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                             required
-                            style={{ width: '100%', padding: '0.7rem 1rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem', fontSize: '0.88rem' }}>Residential Address</label>
+                        <label>Residential Address</label>
                         <input
                             type="text"
                             placeholder="Flat 402, Sector 62, Noida"
                             value={formData.address}
                             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                            style={{ width: '100%', padding: '0.7rem 1rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem', fontSize: '0.88rem' }}>Password *</label>
+                        <label>Password *</label>
                         <input
                             type="password"
                             placeholder="••••••••"
@@ -98,27 +94,15 @@ const Register = () => {
                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             required
                             minLength="6"
-                            style={{ width: '100%', padding: '0.7rem 1rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', outline: 'none' }}
                         />
                     </div>
 
-                    <button type="submit" disabled={isLoading} style={{
-                        width: '100%',
-                        padding: '0.8rem',
-                        background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '1rem',
-                        cursor: isLoading ? 'not-allowed' : 'pointer',
-                        marginTop: '0.5rem'
-                    }}>
-                        {isLoading ? 'Creating Account...' : 'Register Citizen Account'}
+                    <button type="submit" disabled={isLoading} className="btn-municipal" style={{ width: '100%', marginTop: '0.5rem' }}>
+                        {isLoading ? 'Creating Account...' : '📝 Register Citizen Account'}
                     </button>
 
-                    <div style={{ textAlign: 'center', marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        Already registered? <Link to="/login" style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 'bold' }}>Sign In</Link>
+                    <div style={{ textAlign: 'center', marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                        Already registered? <Link to="/login" style={{ color: 'var(--accent-amber)', textDecoration: 'none', fontWeight: 'bold' }}>Sign In</Link>
                     </div>
                 </form>
             </div>

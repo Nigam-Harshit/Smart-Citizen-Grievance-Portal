@@ -32,125 +32,120 @@ const OfficerDashboard = () => {
     return (
         <div style={{ display: 'flex' }}>
             <Sidebar />
-            <div className="main-content" style={{ flex: 1, padding: '2rem', minHeight: '100vh', background: 'var(--bg-primary)' }}>
-                <Topbar title="Field Officer Command Workspace" />
+            <div className="main-content">
+                <Topbar title="Field Officer Workspace" />
 
                 {/* Banner */}
-                <div className="glass-card" style={{
+                <div className="glass-panel" style={{
                     padding: '2rem',
                     borderRadius: '16px',
                     marginBottom: '2rem',
-                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.08))',
-                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    background: 'var(--glass-tint)',
+                    border: '1px solid var(--glass-border)',
                     display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
+                    justify: 'space-between',
+                    alignItems: 'center',
+                    gap: '1.5rem',
+                    flexWrap: 'wrap'
                 }}>
                     <div>
-                        <h2 style={{ margin: '0 0 0.5rem 0', color: 'white' }}>
+                        <h2 style={{ margin: '0 0 0.4rem 0', fontSize: '1.35rem' }}>
                             Welcome, {user?.name || 'Officer'}
                         </h2>
-                        <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                            You have <strong>{openGrievances.length + inProgressGrievances.length} active grievance ticket(s)</strong> assigned to your field jurisdiction.
+                        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '650px' }}>
+                            You have <strong style={{ color: 'var(--accent-amber)' }}>{openGrievances.length + inProgressGrievances.length} active complaint ticket(s)</strong> assigned to your field jurisdiction.
                         </p>
                     </div>
-                    <Link to="/officer/grievances" className="btn-primary" style={{
-                        padding: '0.8rem 1.5rem',
-                        borderRadius: '10px',
-                        background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
-                        color: 'white',
-                        textDecoration: 'none',
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                    }}>
-                        <span>📌</span> Open Kanban Board
+                    <Link to="/officer/grievances" className="btn-municipal" style={{ textDecoration: 'none', padding: '0.8rem 1.6rem' }}>
+                        📌 Open Field Kanban Board
                     </Link>
                 </div>
 
                 {/* KPI Metrics */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Assigned Grievances</div>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'white' }}>{grievances.length}</div>
+                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            ASSIGNED TICKETS
+                        </div>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                            {grievances.length}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                            Jurisdiction total
+                        </div>
                     </div>
 
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Action Pending (Open)</div>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>{openGrievances.length}</div>
+                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px', borderLeft: '3px solid var(--accent-amber)' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            ACTION PENDING
+                        </div>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--accent-amber)', marginTop: '0.2rem' }}>
+                            {openGrievances.length}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                            Open complaints
+                        </div>
                     </div>
 
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Field Investigation (In Progress)</div>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#3b82f6' }}>{inProgressGrievances.length}</div>
+                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px', borderLeft: '3px solid var(--signal-blue)' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            FIELD INSPECTION
+                        </div>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--signal-blue)', marginTop: '0.2rem' }}>
+                            {inProgressGrievances.length}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                            In Progress tickets
+                        </div>
                     </div>
 
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>SLA Overdue Escalations</div>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ef4444' }}>{overdueGrievances.length}</div>
+                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px', borderLeft: '3px solid var(--signal-red)' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            SLA OVERDUE BREACH
+                        </div>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--signal-red)', marginTop: '0.2rem' }}>
+                            {overdueGrievances.length}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                            Action required immediately
+                        </div>
                     </div>
                 </div>
 
-                {/* Action Items List */}
-                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px' }}>
-                    <h3 style={{ margin: '0 0 1.5rem 0', color: 'white' }}>Priority Field Tickets</h3>
+                {/* Priority Action Items */}
+                <div className="glass-panel" style={{ padding: '1.8rem', borderRadius: '14px' }}>
+                    <h3 style={{ margin: '0 0 1.2rem 0', fontSize: '1.1rem' }}>Priority Field Complaints</h3>
                     {loading ? (
-                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading field tickets...</div>
+                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading field tickets...</div>
                     ) : grievances.length === 0 ? (
-                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No assigned grievances currently.</div>
+                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No assigned grievances currently.</div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {grievances.slice(0, 6).map(g => (
-                                <div key={g._id} style={{
-                                    padding: '1.2rem',
-                                    background: 'rgba(255,255,255,0.02)',
-                                    border: '1px solid rgba(255,255,255,0.06)',
-                                    borderRadius: '12px',
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                            {grievances.slice(0, 5).map(g => (
+                                <div key={g._id} className="glass-card glass-card-interactive" style={{
+                                    padding: '1rem 1.4rem',
+                                    borderRadius: '10px',
                                     display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    flexWrap: 'wrap',
-                                    gap: '1rem'
+                                    justify: 'space-between',
+                                    alignItems: 'center'
                                 }}>
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.3rem' }}>
-                                            <h4 style={{ margin: 0, color: 'white', fontSize: '1rem' }}>{g.title}</h4>
-                                            <span style={{
-                                                padding: '0.2rem 0.6rem',
-                                                borderRadius: '12px',
-                                                fontSize: '0.7rem',
-                                                fontWeight: 'bold',
-                                                background: g.priority === 'Critical' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                                                color: g.priority === 'Critical' ? '#ef4444' : '#f59e0b'
-                                            }}>
+                                            <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{g.title}</h4>
+                                            <span className={`status-pill ${g.priority === 'Critical' ? 'status-critical' : 'status-open'}`}>
                                                 {g.priority}
                                             </span>
-                                            <span style={{
-                                                padding: '0.2rem 0.6rem',
-                                                borderRadius: '12px',
-                                                fontSize: '0.7rem',
-                                                fontWeight: 'bold',
-                                                background: g.status === 'Resolved' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                                                color: g.status === 'Resolved' ? '#22c55e' : '#3b82f6'
-                                            }}>
+                                            <span className={`status-pill ${g.status === 'Resolved' ? 'status-resolved' : 'status-in-progress'}`}>
                                                 {g.status}
                                             </span>
                                         </div>
-                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                                             👤 {g.citizenName} • 📍 {g.location} • 🏷️ {g.category}
                                         </div>
                                     </div>
-                                    <Link to={`/citizen/grievance/${g._id}`} style={{
-                                        padding: '0.5rem 1rem',
-                                        borderRadius: '8px',
-                                        background: 'rgba(99, 102, 241, 0.15)',
-                                        color: '#818cf8',
-                                        textDecoration: 'none',
-                                        fontWeight: 'bold',
-                                        fontSize: '0.85rem'
-                                    }}>
-                                        Update Ticket →
+
+                                    <Link to={`/citizen/grievance/${g._id}`} className="btn-municipal-glass" style={{ padding: '0.4rem 0.8rem', fontSize: '0.78rem', textDecoration: 'none' }}>
+                                        Inspect Ticket →
                                     </Link>
                                 </div>
                             ))}

@@ -48,9 +48,9 @@ async function runE2ETests() {
     // Allow MongoMemoryServer 4 seconds to spin up and connect
     await new Promise(r => setTimeout(r, 4000));
 
-    // Seed database with demo accounts before tests
+    // Seed database with demo accounts before tests (pass true to skip re-connecting)
     const seedData = require('../seed');
-    await seedData();
+    await seedData(true);
 
     const baseURL = 'http://127.0.0.1:5000';
     console.log(`🚀 Communicating with server on ${baseURL}`);
@@ -146,7 +146,7 @@ async function runE2ETests() {
         });
         console.log('✅ Grievance Resolved! Status:', resolveRes.data.status, '| ResolvedAt:', resolveRes.data.resolvedAt);
 
-        // Test 7: Dashboard Stats Aggregation
+        // Test 7: Dashboard Civic KPIs Aggregation
         console.log('\n--- Test 7: Dashboard Civic KPIs Aggregation ---');
         const statsRes = await request(`${baseURL}/api/dashboard/stats`, {
             method: 'GET',

@@ -1,233 +1,135 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Topbar from '../../components/Topbar';
 import Sidebar from '../../components/Sidebar';
+import Topbar from '../../components/Topbar';
 import API from '../../utils/api';
+import { useNavigate } from 'react-router-dom';
 
 const SubmitGrievance = () => {
     const navigate = useNavigate();
-    const [formData, setFormData] = useState({
-        title: '',
-        category: 'Sanitation',
-        priority: 'Medium',
-        location: '',
-        description: ''
-    });
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState(null);
-
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
-    const getEstimatedSLA = (priority) => {
-        if (priority === 'Critical') return '24 Hours (Urgent Officer Dispatch)';
-        if (priority === 'High') return '3 Days (72 Hours)';
-        if (priority === 'Medium') return '7 Days';
-        return '14 Days';
-    };
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [category, setCategory] = useState('Sanitation');
+    const [location, setLocation] = useState('');
+    const [priority, setPriority] = useState('Medium');
+    const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setSubmitting(true);
-        setError(null);
+        if (!title || !description || !category || !location) {
+            alert('Please fill out all required fields.');
+            return;
+        }
 
+        setLoading(true);
         try {
-            await API.post('/api/grievances', formData);
-            navigate('/citizen/grievances');
+            const { data } = await API.post('/api/grievances', {
+                title,
+                description,
+                category,
+                location,
+                priority
+            });
+            alert('Grievance lodged successfully!');
+            navigate(`/citizen/grievance/${data._id}`);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to submit grievance');
-            setSubmitting(false);
+            console.error('Error submitting grievance:', err);
+            alert(err.response?.data?.message || 'Error submitting grievance');
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
         <div style={{ display: 'flex' }}>
             <Sidebar />
-            <div className="main-content" style={{ flex: 1, padding: '2rem', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+            <div className="main-content">
                 <Topbar title="Lodge Public Grievance" />
 
-                <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                    <div className="glass-card" style={{ padding: '2.5rem', borderRadius: '16px' }}>
-                        <h2 style={{ margin: '0 0 0.5rem 0', color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span>📝</span> Submit a Civic Complaint
-                        </h2>
-                        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.95rem' }}>
-                            Please provide detailed information about the issue to ensure rapid officer dispatch and SLA enforcement.
-                        </p>
+                <div style={{ maxWidth: '750px', margin: '0 auto' }}>
+                    <div className="glass-panel" style={{ padding: '2.2rem', borderRadius: '16px' }}>
+                        <div style={{ marginBottom: '1.8rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1rem' }}>
+                            <h2 style={{ margin: '0 0 0.4rem 0', fontFamily: 'Fraunces, serif' }}>
+                                Submit Municipal Complaint Ticket
+                            </h2>
+                            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                                Provide accurate complaint details and landmark location to ensure priority SLA dispatch to Zonal field officers.
+                            </p>
+                        </div>
 
-                        {error && (
-                            <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', marginBottom: '1.5rem' }}>
-                                {error}
-                            </div>
-                        )}
-
-                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            <div>
-                                <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 'bold' }}>Grievance Title *</label>
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-group">
+                                <label>Grievance Title *</label>
                                 <input
                                     type="text"
-                                    name="title"
+                                    placeholder="e.g. Burst water pipeline flooding Sector 15 main road"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
                                     required
-                                    placeholder="e.g. Broken Water Pipeline leaking into street"
-                                    value={formData.title}
-                                    onChange={handleChange}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.8rem 1rem',
-                                        background: 'rgba(0,0,0,0.3)',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '8px',
-                                        color: 'white',
-                                        fontSize: '0.95rem',
-                                        outline: 'none'
-                                    }}
                                 />
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 'bold' }}>Category *</label>
-                                    <select
-                                        name="category"
-                                        value={formData.category}
-                                        onChange={handleChange}
-                                        style={{
-                                            width: '100%',
-                                            padding: '0.8rem 1rem',
-                                            background: 'rgba(30, 41, 59, 0.95)',
-                                            border: '1px solid rgba(255,255,255,0.1)',
-                                            borderRadius: '8px',
-                                            color: 'white',
-                                            fontSize: '0.95rem',
-                                            outline: 'none'
-                                        }}
-                                    >
-                                        <option value="Sanitation">Sanitation & Garbage</option>
-                                        <option value="Roads & Traffic">Roads, Potholes & Traffic</option>
-                                        <option value="Water Supply">Water Supply & Leakage</option>
-                                        <option value="Electricity">Electricity & Street Lights</option>
-                                        <option value="Public Safety">Public Safety & Noise</option>
-                                        <option value="Other">Other Civic Issues</option>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div className="form-group">
+                                    <label>Municipal Category *</label>
+                                    <select value={category} onChange={(e) => setCategory(e.target.value)} required>
+                                        <option value="Sanitation">🧹 Sanitation & Garbage</option>
+                                        <option value="Water Supply">💧 Water Supply & Drainage</option>
+                                        <option value="Roads">🚦 Roads & Potholes</option>
+                                        <option value="Electricity">⚡ Street Lighting & Power</option>
+                                        <option value="Public Safety">🛡️ Public Safety & Nuisance</option>
                                     </select>
                                 </div>
 
-                                <div>
-                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 'bold' }}>Priority Level *</label>
-                                    <select
-                                        name="priority"
-                                        value={formData.priority}
-                                        onChange={handleChange}
-                                        style={{
-                                            width: '100%',
-                                            padding: '0.8rem 1rem',
-                                            background: 'rgba(30, 41, 59, 0.95)',
-                                            border: '1px solid rgba(255,255,255,0.1)',
-                                            borderRadius: '8px',
-                                            color: 'white',
-                                            fontSize: '0.95rem',
-                                            outline: 'none'
-                                        }}
-                                    >
-                                        <option value="Low">Low (General Inquiry / Minor issue)</option>
-                                        <option value="Medium">Medium (Standard resolution needed)</option>
-                                        <option value="High">High (Significant public inconvenience)</option>
-                                        <option value="Critical">Critical (Hazardous / Emergency)</option>
+                                <div className="form-group">
+                                    <label>Priority Level *</label>
+                                    <select value={priority} onChange={(e) => setPriority(e.target.value)} required>
+                                        <option value="Low">Low (14 Days Target SLA)</option>
+                                        <option value="Medium">Medium (7 Days Target SLA)</option>
+                                        <option value="High">High (3 Days Target SLA)</option>
+                                        <option value="Critical">Critical (24 Hours Emergency SLA)</option>
                                     </select>
                                 </div>
                             </div>
 
-                            {/* Estimated SLA Window Info Banner */}
-                            <div style={{
-                                padding: '0.8rem 1rem',
-                                background: 'rgba(99, 102, 241, 0.1)',
-                                border: '1px solid rgba(99, 102, 241, 0.25)',
-                                borderRadius: '8px',
-                                fontSize: '0.88rem',
-                                color: '#818cf8',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px'
-                            }}>
-                                <span>⏱️</span>
-                                <span><strong>Estimated Resolution Target (SLA):</strong> {getEstimatedSLA(formData.priority)}</span>
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 'bold' }}>Location / Landmark Address *</label>
+                            <div className="form-group">
+                                <label>Specific Location Landmark *</label>
                                 <input
                                     type="text"
-                                    name="location"
+                                    placeholder="e.g. Opposite Sector 15 Market Gate 2, Main Avenue"
+                                    value={location}
+                                    onChange={(e) => setLocation(e.target.value)}
                                     required
-                                    placeholder="e.g. Near Community Center Gate 2, Sector 62, Noida"
-                                    value={formData.location}
-                                    onChange={handleChange}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.8rem 1rem',
-                                        background: 'rgba(0,0,0,0.3)',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '8px',
-                                        color: 'white',
-                                        fontSize: '0.95rem',
-                                        outline: 'none'
-                                    }}
                                 />
                             </div>
 
-                            <div>
-                                <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 'bold' }}>Detailed Description *</label>
+                            <div className="form-group">
+                                <label>Full Problem Description *</label>
                                 <textarea
-                                    name="description"
+                                    placeholder="Describe the grievance in detail, including time observed, severity, and any immediate hazards..."
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
                                     rows="5"
                                     required
-                                    placeholder="Describe the problem, duration, severity, and any hazards involved..."
-                                    value={formData.description}
-                                    onChange={handleChange}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.8rem 1rem',
-                                        background: 'rgba(0,0,0,0.3)',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '8px',
-                                        color: 'white',
-                                        fontSize: '0.95rem',
-                                        outline: 'none',
-                                        resize: 'vertical'
-                                    }}
                                 />
                             </div>
 
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', justifyContent: 'flex-end' }}>
                                 <button
                                     type="button"
                                     onClick={() => navigate('/citizen')}
-                                    style={{
-                                        padding: '0.8rem 1.5rem',
-                                        background: 'transparent',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        borderRadius: '8px',
-                                        color: 'white',
-                                        cursor: 'pointer'
-                                    }}
+                                    className="btn-municipal-glass"
+                                    style={{ padding: '0.75rem 1.6rem', borderRadius: '8px' }}
                                 >
                                     Cancel
                                 </button>
+
                                 <button
                                     type="submit"
-                                    disabled={submitting}
-                                    style={{
-                                        padding: '0.8rem 2rem',
-                                        background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                                        border: 'none',
-                                        borderRadius: '8px',
-                                        color: 'white',
-                                        fontWeight: 'bold',
-                                        cursor: submitting ? 'not-allowed' : 'pointer',
-                                        boxShadow: '0 8px 20px rgba(99, 102, 241, 0.3)'
-                                    }}
+                                    disabled={loading}
+                                    className="btn-municipal"
+                                    style={{ padding: '0.75rem 2rem', borderRadius: '8px' }}
                                 >
-                                    {submitting ? 'Submitting...' : 'Submit Grievance Ticket'}
+                                    {loading ? 'Submitting Request...' : '📝 Lodge Official Grievance'}
                                 </button>
                             </div>
                         </form>

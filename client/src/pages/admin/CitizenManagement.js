@@ -92,38 +92,25 @@ const CitizenManagement = () => {
         c.address?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const getRiskStyle = (risk) => {
-        if (risk === 'High') return { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' };
-        if (risk === 'Medium') return { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' };
-        return { bg: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' };
-    };
-
     return (
         <div style={{ display: 'flex' }}>
             <Sidebar />
-            <div className="main-content" style={{ flex: 1, padding: '2rem', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+            <div className="main-content">
                 <Topbar title="Master Citizen Directory" />
 
-                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', marginBottom: '2rem' }}>
+                <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px', marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-                        <h2 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span>👥</span> Registered Citizens ({filteredCitizens.length})
                         </h2>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                             <ExportButtons data={filteredCitizens} filename="Master_Citizens_Directory" />
                             <button
                                 onClick={handleOpenCreateModal}
-                                style={{
-                                    padding: '0.6rem 1.2rem',
-                                    background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer'
-                                }}
+                                className="btn-municipal"
+                                style={{ padding: '0.6rem 1.2rem' }}
                             >
-                                + Add Citizen
+                                + Add Citizen Profile
                             </button>
                         </div>
                     </div>
@@ -133,74 +120,62 @@ const CitizenManagement = () => {
                         placeholder="Search citizens by name, email, phone, or address..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '0.7rem 1rem',
-                            background: 'rgba(0,0,0,0.3)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '8px',
-                            color: 'white',
-                            outline: 'none',
-                            marginBottom: '1.5rem'
-                        }}
+                        style={{ marginBottom: '1.5rem' }}
                     />
 
                     {loading ? (
-                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading directory...</div>
+                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading directory...</div>
                     ) : filteredCitizens.length === 0 ? (
-                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No matching citizen records found.</div>
+                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>No matching citizen records found.</div>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', color: 'white', textAlign: 'left' }}>
+                            <table className="table-glass">
                                 <thead>
-                                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                                        <th style={{ padding: '1rem' }}>Citizen Name</th>
-                                        <th style={{ padding: '1rem' }}>Contact Info</th>
-                                        <th style={{ padding: '1rem' }}>Address</th>
-                                        <th style={{ padding: '1rem' }}>Assigned Officer</th>
-                                        <th style={{ padding: '1rem' }}>Escalation Risk</th>
-                                        <th style={{ padding: '1rem' }}>Actions</th>
+                                    <tr>
+                                        <th>Citizen Name & Email</th>
+                                        <th>Contact Phone</th>
+                                        <th>Residential Address</th>
+                                        <th>Assigned Field Officer</th>
+                                        <th>Escalation Risk</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredCitizens.map(c => {
-                                        const riskStyle = getRiskStyle(c.escalationRisk);
-                                        return (
-                                            <tr key={c._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <div style={{ fontWeight: 'bold' }}>{c.name}</div>
-                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{c.email}</div>
-                                                </td>
-                                                <td style={{ padding: '1rem', fontSize: '0.9rem' }}>📞 {c.contact}</td>
-                                                <td style={{ padding: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '220px' }}>🏠 {c.address || 'N/A'}</td>
-                                                <td style={{ padding: '1rem', fontSize: '0.85rem' }}>
-                                                    {c.assignedTo?.name ? (
-                                                        <span style={{ color: '#818cf8', fontWeight: 'bold' }}>👮 {c.assignedTo.name}</span>
-                                                    ) : (
-                                                        <span style={{ color: 'var(--text-secondary)' }}>Unassigned</span>
-                                                    )}
-                                                </td>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <span style={{ padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', background: riskStyle.bg, color: riskStyle.color }}>
-                                                        {c.escalationRisk || 'Low'}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-                                                        <Link to={`/citizen-profile/${c._id}`} style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                                                            360 Profile
-                                                        </Link>
-                                                        <button onClick={() => handleOpenEditModal(c)} style={{ background: 'transparent', border: 'none', color: '#f59e0b', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                                                            Edit
-                                                        </button>
-                                                        <button onClick={() => handleDeleteCitizen(c._id, c.name)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                                                            Delete
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                    {filteredCitizens.map(c => (
+                                        <tr key={c._id} className="table-row-hover">
+                                            <td>
+                                                <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{c.name}</div>
+                                                <div className="mono-data" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div>
+                                            </td>
+                                            <td className="mono-data" style={{ fontSize: '0.85rem' }}>📞 {c.contact}</td>
+                                            <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '220px' }}>🏠 {c.address || 'N/A'}</td>
+                                            <td style={{ fontSize: '0.85rem' }}>
+                                                {c.assignedTo?.name ? (
+                                                    <span style={{ color: 'var(--accent-amber)', fontWeight: 'bold' }}>👮 {c.assignedTo.name}</span>
+                                                ) : (
+                                                    <span style={{ color: 'var(--text-muted)' }}>Unassigned</span>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <span className={`status-pill ${c.escalationRisk === 'High' ? 'status-critical' : 'status-resolved'}`}>
+                                                    {c.escalationRisk || 'Low'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+                                                    <Link to={`/citizen-profile/${c._id}`} style={{ color: 'var(--accent-amber)', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.82rem' }}>
+                                                        360 Profile
+                                                    </Link>
+                                                    <button onClick={() => handleOpenEditModal(c)} style={{ background: 'transparent', border: 'none', color: 'var(--signal-blue)', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.82rem' }}>
+                                                        Edit
+                                                    </button>
+                                                    <button onClick={() => handleDeleteCitizen(c._id, c.name)} style={{ background: 'transparent', border: 'none', color: 'var(--signal-red)', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.82rem' }}>
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
@@ -209,68 +184,52 @@ const CitizenManagement = () => {
 
                 {/* Modal Form for Create / Edit */}
                 {showModal && (
-                    <div style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'rgba(0,0,0,0.7)',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        zIndex: 1000
-                    }}>
-                        <div className="glass-card" style={{ width: '500px', padding: '2rem', borderRadius: '16px', background: '#1e293b' }}>
-                            <h3 style={{ margin: '0 0 1.5rem 0', color: 'white' }}>
+                    <div className="modal-overlay">
+                        <div className="modal-content">
+                            <h3 style={{ margin: '0 0 1.2rem 0', fontFamily: 'Fraunces, serif' }}>
                                 {editingCitizen ? 'Edit Citizen Record' : 'Register New Citizen'}
                             </h3>
-                            <form onSubmit={handleSubmitForm} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.3rem', fontSize: '0.85rem' }}>Full Name *</label>
+                            <form onSubmit={handleSubmitForm}>
+                                <div className="form-group">
+                                    <label>Full Name *</label>
                                     <input
                                         type="text"
                                         required
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        style={{ width: '100%', padding: '0.6rem 0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white' }}
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.3rem', fontSize: '0.85rem' }}>Email Address *</label>
+                                <div className="form-group">
+                                    <label>Email Address *</label>
                                     <input
                                         type="email"
                                         required
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        style={{ width: '100%', padding: '0.6rem 0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white' }}
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.3rem', fontSize: '0.85rem' }}>Contact Phone *</label>
+                                <div className="form-group">
+                                    <label>Contact Phone *</label>
                                     <input
                                         type="text"
                                         required
                                         value={formData.contact}
                                         onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                                        style={{ width: '100%', padding: '0.6rem 0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white' }}
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.3rem', fontSize: '0.85rem' }}>Residential Address</label>
+                                <div className="form-group">
+                                    <label>Residential Address</label>
                                     <input
                                         type="text"
                                         value={formData.address}
                                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                        style={{ width: '100%', padding: '0.6rem 0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white' }}
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.3rem', fontSize: '0.85rem' }}>Assign Officer</label>
+                                <div className="form-group">
+                                    <label>Assign Officer</label>
                                     <select
                                         value={formData.assignedTo}
                                         onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                                        style={{ width: '100%', padding: '0.6rem 0.8rem', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white' }}
                                     >
                                         <option value="">Unassigned</option>
                                         {officers.map(o => (
@@ -279,11 +238,11 @@ const CitizenManagement = () => {
                                     </select>
                                 </div>
 
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-                                    <button type="button" onClick={() => setShowModal(false)} style={{ padding: '0.6rem 1.2rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: '6px', cursor: 'pointer' }}>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+                                    <button type="button" onClick={() => setShowModal(false)} className="btn-municipal-glass" style={{ padding: '0.6rem 1.2rem' }}>
                                         Cancel
                                     </button>
-                                    <button type="submit" style={{ padding: '0.6rem 1.5rem', background: '#6366f1', border: 'none', color: 'white', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>
+                                    <button type="submit" className="btn-municipal" style={{ padding: '0.6rem 1.5rem' }}>
                                         Save Record
                                     </button>
                                 </div>

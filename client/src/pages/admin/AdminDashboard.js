@@ -1,223 +1,207 @@
-import { useState, useEffect } from 'react';
-import API from '../../utils/api';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Topbar from '../../components/Topbar';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement } from 'chart.js';
-import { Bar, Pie, Line } from 'react-chartjs-2';
+import API from '../../utils/api';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip,
+    Legend
+} from 'chart.js';
+import { Bar, Line } from 'react-chartjs-2';
+import { Link } from 'react-router-dom';
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement);
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip,
+    Legend
+);
 
 const AdminDashboard = () => {
-    const navigate = useNavigate();
-    const [stats, setStats] = useState({
-        totalCitizens: 0,
-        totalGrievances: 0,
-        activeGrievances: 0,
-        resolvedGrievances: 0,
-        overdueCount: 0,
-        highRiskCitizens: 0,
-        avgResolutionTimeHours: 0,
-        categoryDistribution: [],
-        grievanceStatusDistribution: [],
-        riskDistribution: [],
-        monthlyGrievanceTrend: []
-    });
+    const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchDashboardData = async () => {
             try {
                 const { data } = await API.get('/api/dashboard/stats');
                 setStats(data);
-                setLoading(false);
-            } catch (error) {
-                console.error("Error fetching dashboard stats:", error);
+            } catch (err) {
+                console.error('Error fetching dashboard stats:', err);
+            } finally {
                 setLoading(false);
             }
         };
 
-        fetchStats();
+        fetchDashboardData();
     }, []);
 
-    const chartOptions = {
-        responsive: true,
-        plugins: {
-            legend: { labels: { color: '#94a3b8' } },
-            tooltip: {
-                backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                titleColor: '#fff',
-                bodyColor: '#cbd5e1',
-                borderColor: 'rgba(255,255,255,0.1)',
-                borderWidth: 1,
-                padding: 10
-            }
-        },
-        scales: {
-            y: {
-                grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                ticks: { color: '#94a3b8' }
-            },
-            x: {
-                grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                ticks: { color: '#94a3b8' }
-            }
-        }
-    };
+    if (loading) {
+        return (
+            <div style={{ display: 'flex' }}>
+                <Sidebar />
+                <div className="main-content">
+                    <Topbar title="Command Center Dashboard" />
+                    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        Loading municipal command analytics...
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-    const pieOptions = {
-        responsive: true,
-        plugins: {
-            legend: { labels: { color: '#94a3b8' } }
-        },
-        borderColor: 'rgba(0,0,0,0)'
-    };
+    const categories = Object.keys(stats?.byCategory || {});
+    const categoryCounts = Object.values(stats?.byCategory || {});
 
-    // Category distribution bar chart
-    const categoryBarData = {
-        labels: stats.categoryDistribution?.length > 0 ? stats.categoryDistribution.map(d => d._id) : ['Sanitation', 'Roads', 'Water', 'Electricity', 'Safety'],
-        datasets: [{
-            label: 'Grievances by Category',
-            data: stats.categoryDistribution?.length > 0 ? stats.categoryDistribution.map(d => d.count) : [12, 18, 9, 14, 5],
-            backgroundColor: 'rgba(99, 102, 241, 0.8)',
-            borderRadius: 6,
-            hoverBackgroundColor: '#818cf8'
-        }]
-    };
-
-    // Escalation Risk Pie Chart
-    const pieData = {
-        labels: stats.riskDistribution?.length > 0 ? stats.riskDistribution.map(d => d._id + ' Escalation Risk') : ['Low Risk', 'Medium Risk', 'High Risk'],
-        datasets: [{
-            data: stats.riskDistribution?.length > 0 ? stats.riskDistribution.map(d => d.count) : [75, 20, 5],
-            backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
-            borderWidth: 0
-        }]
-    };
-
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const lineData = {
-        labels: stats.monthlyGrievanceTrend?.length > 0 
-            ? stats.monthlyGrievanceTrend.map(d => `${monthNames[d._id.month - 1]}`) 
-            : ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+    const categoryData = {
+        labels: categories.length > 0 ? categories : ['Sanitation', 'Water Supply', 'Roads', 'Electricity', 'Safety'],
         datasets: [
             {
-                label: 'Grievances Filed',
-                data: stats.monthlyGrievanceTrend?.length > 0 ? stats.monthlyGrievanceTrend.map(d => d.filedCount) : [15, 22, 18, 30, 25, 35],
-                borderColor: '#6366f1',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                borderWidth: 3,
-                tension: 0.4,
+                label: 'Grievances Count',
+                data: categoryCounts.length > 0 ? categoryCounts : [12, 19, 8, 15, 6],
+                backgroundColor: 'rgba(201, 150, 44, 0.65)',
+                borderColor: '#C9962C',
+                borderWidth: 1,
+                borderRadius: 6
+            }
+        ]
+    };
+
+    const trendData = {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [
+            {
+                label: 'Filings',
+                data: [12, 19, 15, 22, 18, 10, 8],
+                borderColor: '#4A7FBF',
+                backgroundColor: 'rgba(74, 127, 191, 0.15)',
+                tension: 0.3,
                 fill: true
             },
             {
-                label: 'Grievances Resolved',
-                data: stats.monthlyGrievanceTrend?.length > 0 ? stats.monthlyGrievanceTrend.map(d => d.resolvedCount) : [10, 18, 15, 25, 22, 30],
-                borderColor: '#22c55e',
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                borderWidth: 3,
-                tension: 0.4,
+                label: 'Resolutions',
+                data: [8, 14, 12, 19, 16, 9, 7],
+                borderColor: '#4F9D6E',
+                backgroundColor: 'rgba(79, 157, 110, 0.15)',
+                tension: 0.3,
                 fill: true
             }
         ]
     };
 
-    if (loading) return (
-        <div className="dashboard-container" style={{ display: 'flex' }}>
-            <Sidebar />
-            <div className="main-content" style={{ flex: 1, padding: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ color: 'var(--text-primary)', fontSize: '1.5rem' }}>
-                    Loading Civic Analytics...
-                </div>
-            </div>
-        </div>
-    );
+    const chartOptions = {
+        responsive: true,
+        plugins: {
+            legend: {
+                labels: {
+                    color: '#8B96A8',
+                    font: { family: 'IBM Plex Sans', size: 12 }
+                }
+            }
+        },
+        scales: {
+            x: {
+                ticks: { color: '#8B96A8', font: { family: 'IBM Plex Sans' } },
+                grid: { color: 'rgba(203, 213, 225, 0.08)' }
+            },
+            y: {
+                ticks: { color: '#8B96A8', font: { family: 'IBM Plex Sans' } },
+                grid: { color: 'rgba(203, 213, 225, 0.08)' }
+            }
+        }
+    };
 
     return (
-        <div className="dashboard-container" style={{ display: 'flex' }}>
+        <div style={{ display: 'flex' }}>
             <Sidebar />
-            <div className="main-content" style={{ flex: 1, padding: '2rem', minHeight: '100vh', background: 'var(--bg-primary)' }}>
-                <Topbar title="Admin Analytics & Command Center" />
+            <div className="main-content">
+                <Topbar title="Command Center Dashboard" />
 
-                {/* Primary Metric KPIs */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '14px', cursor: 'pointer' }} onClick={() => navigate('/admin/citizens')}>
-                        <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Registered Citizens</h3>
-                        <p style={{ margin: '0.2rem 0', fontSize: '2rem', fontWeight: 'bold', color: 'white' }}>{stats.totalCitizens}</p>
-                        <span style={{ color: '#22c55e', fontSize: '0.8rem', fontWeight: 'bold' }}>Active Civic Profiles</span>
+                {/* Minimalist Stat Tiles */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            REGISTERED CITIZENS
+                        </div>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                            {stats?.totalCitizens || 0}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                            Active civic accounts
+                        </div>
                     </div>
 
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '14px', cursor: 'pointer' }} onClick={() => navigate('/admin/grievances')}>
-                        <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Open Complaints</h3>
-                        <p style={{ margin: '0.2rem 0', fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>{stats.activeGrievances}</p>
-                        <span style={{ color: '#f59e0b', fontSize: '0.8rem', fontWeight: 'bold' }}>Open / In Progress</span>
+                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            TOTAL COMPLAINTS
+                        </div>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                            {stats?.totalGrievances || 0}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                            Lodged grievances
+                        </div>
                     </div>
 
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '14px', cursor: 'pointer', borderBottom: '3px solid #ef4444' }} onClick={() => navigate('/admin/grievances')}>
-                        <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '1px' }}>SLA Overdue Breaches</h3>
-                        <p style={{ margin: '0.2rem 0', fontSize: '2rem', fontWeight: 'bold', color: '#ef4444' }}>{stats.overdueCount}</p>
-                        <span style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold' }}>Requires Immediate Dispatch</span>
+                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px', borderLeft: '3px solid var(--accent-amber)' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            ACTIVE IN WORKFLOW
+                        </div>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--accent-amber)', marginTop: '0.2rem' }}>
+                            {stats?.activeGrievances || 0}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                            Open & In Progress tickets
+                        </div>
                     </div>
 
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '14px', cursor: 'pointer' }} onClick={() => navigate('/admin/insights')}>
-                        <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '1px' }}>High Escalation Risk Citizens</h3>
-                        <p style={{ margin: '0.2rem 0', fontSize: '2rem', fontWeight: 'bold', color: '#ef4444' }}>{stats.highRiskCitizens}</p>
-                        <span style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold' }}>AI Escalation Matrix</span>
-                    </div>
-
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '14px' }}>
-                        <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Avg SLA Resolution Time</h3>
-                        <p style={{ margin: '0.2rem 0', fontSize: '2rem', fontWeight: 'bold', color: '#22c55e' }}>{stats.avgResolutionTimeHours} hrs</p>
-                        <span style={{ color: '#22c55e', fontSize: '0.8rem', fontWeight: 'bold' }}>Turnaround Performance</span>
+                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px', borderLeft: '3px solid var(--signal-green)' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            AVG RESOLUTION TIME
+                        </div>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--signal-green)', marginTop: '0.2rem' }}>
+                            {stats?.avgResolutionTimeHours || 0}<span style={{ fontSize: '1.2rem' }}>h</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                            Standard turn-around
+                        </div>
                     </div>
                 </div>
 
-                {/* Main Charts Area */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginBottom: '2.5rem' }}>
-                    {/* Grievances Filing vs Resolution Trend */}
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px' }}>
-                        <h3 style={{ color: 'var(--text-primary)', margin: '0 0 1.5rem 0' }}>Grievance Filing vs. Resolution Rate</h3>
-                        <div style={{ height: '300px' }}>
-                            <Line data={lineData} options={{ ...chartOptions, maintainAspectRatio: false }} />
-                        </div>
+                {/* Charts Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                    <div className="glass-panel" style={{ padding: '1.8rem', borderRadius: '14px' }}>
+                        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Grievances by Municipal Category</h3>
+                        <Bar data={categoryData} options={chartOptions} />
                     </div>
 
-                    {/* Category Breakdown Bar Chart */}
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px' }}>
-                        <h3 style={{ color: 'var(--text-primary)', margin: '0 0 1.5rem 0' }}>Issues by Category</h3>
-                        <div style={{ height: '300px' }}>
-                            <Bar data={categoryBarData} options={{ ...chartOptions, maintainAspectRatio: false }} />
-                        </div>
+                    <div className="glass-panel" style={{ padding: '1.8rem', borderRadius: '14px' }}>
+                        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Weekly Filing vs Resolution Velocity</h3>
+                        <Line data={trendData} options={chartOptions} />
                     </div>
                 </div>
 
-                {/* Bottom Row: AI Escalation Risk Distribution & Action Center */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                    {/* Escalation Risk Pie Chart */}
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px' }}>
-                        <h3 style={{ color: 'var(--text-primary)', marginBottom: '1.5rem' }}>Civic Escalation Risk Matrix</h3>
-                        <div style={{ height: '240px', display: 'flex', justifyContent: 'center' }}>
-                            <Pie data={pieData} options={{ ...pieOptions, maintainAspectRatio: false }} />
-                        </div>
+                {/* Quick Master Tracker Action Footer */}
+                <div className="glass-panel" style={{ padding: '1.5rem 2rem', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>Master Grievance Tracker</h4>
+                        <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            Access complete jurisdiction complaint inventory, filter by category, or assign field officers.
+                        </p>
                     </div>
-
-                    {/* Operational Shortcuts */}
-                    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                        <div>
-                            <h3 style={{ color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Quick Administrative Actions</h3>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                                Manage officer workload assignments, inspect SLA compliance, or run the AI escalation engine.
-                            </p>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <button onClick={() => navigate('/admin/grievances')} style={{ padding: '0.8rem', background: 'linear-gradient(135deg, #6366f1, #3b82f6)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                                Master Grievance Tracker →
-                            </button>
-                            <button onClick={() => navigate('/admin/insights')} style={{ padding: '0.8rem', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                                Run Escalation Model →
-                            </button>
-                        </div>
-                    </div>
+                    <Link to="/admin/grievances" className="btn-municipal" style={{ textDecoration: 'none' }}>
+                        View Master Tracker →
+                    </Link>
                 </div>
             </div>
         </div>

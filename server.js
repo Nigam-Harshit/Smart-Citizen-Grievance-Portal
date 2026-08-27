@@ -13,14 +13,15 @@ const app = express();
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-    : ["https://m-m-solutions.netlify.app", "http://localhost:3000", "http://localhost:5000"];
+    : ["https://smart-citizen-grievance-portal.vercel.app", "http://localhost:3000", "http://localhost:5000"];
 
 app.use(cors({
     origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl, server-to-server) or listed origins
         if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
             callback(null, true);
         } else {
-            callback(null, true); // Permissive CORS for dev/deployment testing
+            callback(new Error(`CORS policy violation: Origin ${origin} is not allowed`));
         }
     },
     credentials: true

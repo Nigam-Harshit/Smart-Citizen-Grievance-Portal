@@ -1,6 +1,6 @@
 {
-  "short_name": "MMSolutions",
-  "name": "MMSolutions - Customer Report System",
+  "short_name": "CivicPortal",
+  "name": "Smart Citizen Grievance Management & Analytics Portal",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +20,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a"
 }

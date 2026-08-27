@@ -13,8 +13,10 @@ const AuditLog = require('./models/AuditLog');
 
 const connectDB = require('./config/db');
 
-const seedData = async () => {
-    await connectDB();
+const seedData = async (skipConnect = false) => {
+    if (!skipConnect) {
+        await connectDB();
+    }
 
     try {
         console.log('🧹 Clearing existing collections...');

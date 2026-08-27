@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import Topbar from '../../components/Topbar';
 import API from '../../utils/api';
-import AuthContext from '../../context/AuthContext';
 
 const GrievanceDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user } = useContext(AuthContext);
 
     const [grievance, setGrievance] = useState(null);
     const [updates, setUpdates] = useState([]);
@@ -19,11 +17,7 @@ const GrievanceDetail = () => {
     const [noteType, setNoteType] = useState('Citizen Response');
     const [submitting, setSubmitting] = useState(false);
 
-    useEffect(() => {
-        fetchDetails();
-    }, [id]);
-
-    const fetchDetails = async () => {
+    const fetchDetails = useCallback(async () => {
         try {
             const [gRes, uRes] = await Promise.all([
                 API.get(`/api/grievances/${id}`),
@@ -36,7 +30,11 @@ const GrievanceDetail = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
+
+    useEffect(() => {
+        fetchDetails();
+    }, [fetchDetails]);
 
     const handleAddUpdate = async (e) => {
         e.preventDefault();
@@ -284,7 +282,7 @@ const GrievanceDetail = () => {
                                                 {new Date(u.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
-                                        <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: '1.4' }}>
+                                        <p style={{ margin: '0', color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: '1.4' }}>
                                             {u.notes}
                                         </p>
                                     </div>

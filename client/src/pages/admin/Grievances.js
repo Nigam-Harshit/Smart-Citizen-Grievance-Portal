@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Topbar from '../../components/Topbar';
 import API from '../../utils/api';
@@ -17,12 +17,7 @@ const MasterGrievances = () => {
     const [assignOfficerId, setAssignOfficerId] = useState('');
     const [showAssignModal, setShowAssignModal] = useState(false);
 
-    useEffect(() => {
-        fetchGrievances();
-        fetchOfficers();
-    }, [filterCategory, filterStatus, filterPriority]);
-
-    const fetchGrievances = async () => {
+    const fetchGrievances = useCallback(async () => {
         try {
             let query = '/api/grievances?';
             if (filterCategory) query += `category=${encodeURIComponent(filterCategory)}&`;
@@ -36,18 +31,22 @@ const MasterGrievances = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filterCategory, filterStatus, filterPriority]);
 
-    const fetchOfficers = async () => {
+    const fetchOfficers = useCallback(async () => {
         try {
-            const { data } = await API.get('/api/citizens');
-            // Mock or fetch staff users if available, or fetch officers
+            await API.get('/api/citizens');
             const userRes = await API.get('/api/auth/officers').catch(() => ({ data: [] }));
             setOfficers(userRes.data || []);
         } catch (err) {
             console.error('Error fetching officers:', err);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchGrievances();
+        fetchOfficers();
+    }, [fetchGrievances, fetchOfficers]);
 
     const handleOpenAssignModal = (g) => {
         setSelectedGrievance(g);

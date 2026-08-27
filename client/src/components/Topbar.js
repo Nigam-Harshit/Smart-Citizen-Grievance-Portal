@@ -8,10 +8,9 @@ const Topbar = ({ title }) => {
     const { user } = useContext(AuthContext);
     const [searchTerm, setSearchTerm] = useState('');
     const [showNotifications, setShowNotifications] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(2);
+    const [unreadCount] = useState(2);
     const [showResults, setShowResults] = useState(false);
     const [searchResults, setSearchResults] = useState({ citizens: [], grievances: [] });
-    const [isSearching, setIsSearching] = useState(false);
     const searchRef = useRef(null);
     const notificationRef = useRef(null);
     const debounceRef = useRef(null);
@@ -39,7 +38,6 @@ const Topbar = ({ title }) => {
             return;
         }
 
-        setIsSearching(true);
         try {
             const [citRes, griRes] = await Promise.all([
                 API.get('/api/citizens'),
@@ -71,8 +69,6 @@ const Topbar = ({ title }) => {
             setShowResults(true);
         } catch (error) {
             console.error('Search failed', error);
-        } finally {
-            setIsSearching(false);
         }
     }, []);
 

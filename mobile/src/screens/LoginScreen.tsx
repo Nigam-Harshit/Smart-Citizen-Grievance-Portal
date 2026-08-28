@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { loginCitizen } from '../services/authService';
 
 interface LoginScreenProps {
   onNavigate: (screen: any) => void;
@@ -19,17 +20,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigate, onLoginSuc
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await loginCitizen({ email, password });
       setLoading(false);
-      onLoginSuccess({
-        _id: 'mock_user_123',
-        name: 'Rajesh Kumar',
-        email,
-        role: 'citizen',
-        phone: '+91 98100 12345',
-      });
+
+      if (res.error) {
+        Alert.alert('Sign In Failed', res.error);
+        return;
+      }
+
+      onLoginSuccess(res.data);
       onNavigate('Home');
-    }, 800);
+    } catch (err: any) {
+      setLoading(false);
+      Alert.alert('Network Error', err.message || 'Unable to connect to portal server.');
+    }
   };
 
   const handleQuickDemo = (demoEmail: string) => {

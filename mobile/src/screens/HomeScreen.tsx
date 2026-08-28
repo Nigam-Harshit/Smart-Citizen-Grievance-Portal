@@ -1,6 +1,7 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { fetchDutyQueue } from '../services/grievanceService';
 
 interface HomeScreenProps {
   user: any;
@@ -9,26 +10,35 @@ interface HomeScreenProps {
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogout }) => {
-  const mockGrievances = [
-    {
-      id: 'g1',
-      title: 'Contaminated Water Supply in Block 4',
-      category: 'Water Supply',
-      priority: 'Critical',
-      status: 'In Progress',
-      location: 'Sector 62, Block 4, Noida',
-      deadline: 'Overdue (24h breach)',
-    },
-    {
-      id: 'g2',
-      title: 'Severe Street Light Failure on Main Road',
-      category: 'Electricity',
-      priority: 'High',
-      status: 'Open',
-      location: 'Main Arterial Road, Sector 62',
-      deadline: 'In 2 Days',
-    },
-  ];
+  const [grievances, setGrievances] = useState<any[]>([]);
+  const [activeCount, setActiveCount] = useState<number>(0);
+  const [resolvedCount, setResolvedCount] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetchDutyQueue();
+      if (res.data) {
+        const myGrievances = res.data.myGrievances || [];
+        setGrievances(myGrievances);
+        setActiveCount(res.data.myCount || myGrievances.length);
+        setResolvedCount(res.data.resolvedCount || 0);
+      } else if (res.error) {
+        setErrorMsg(res.error);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to load live duty queue.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -58,16 +68,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
         {/* Stats Row */}
         <View style={styles.statsRow}>
           <View style={styles.statTile}>
-            <Text style={styles.statNumber}>2</Text>
+            <Text style={styles.statNumber}>{activeCount}</Text>
             <Text style={styles.statLabel}>Active Complaints</Text>
           </View>
           <View style={[styles.statTile, { borderLeftColor: '#4F9D6E' }]}>
-            <Text style={[styles.statNumber, { color: '#4F9D6E' }]}>1</Text>
+            <Text style={[styles.statNumber, { color: '#4F9D6E' }]}>{resolvedCount}</Text>
             <Text style={styles.statLabel}>Resolved Tickets</Text>
           </View>
         </View>
 
-        {/* Duty Queue Widget */}
+        {/* Duty Queue Widget Header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>📋 My Active Duty Queue</Text>
           <TouchableOpacity onPress={() => onNavigate('MyGrievances')}>
@@ -75,27 +85,50 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
           </TouchableOpacity>
         </View>
 
-        {mockGrievances.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.grievanceCard}
-            onPress={() => onNavigate('GrievanceDetail', { id: item.id })}
-          >
-            <View style={styles.cardHeader}>
-              <Text style={styles.ticketTitle}>{item.title}</Text>
-              <View style={[styles.prioBadge, item.priority === 'Critical' && styles.criticalBadge]}>
-                <Text style={styles.prioText}>{item.priority}</Text>
-              </View>
-            </View>
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="small" color="#C9962C" />
+            <Text style={styles.loadingText}>Fetching Live Grievance Queue...</Text>
+          </View>
+        ) : errorMsg ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>⚠️ {errorMsg}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={loadDashboardData}>
+              <Text style={styles.retryBtnText}>Retry Connection</Text>
+            </TouchableOpacity>
+          </View>
+        ) : grievances.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>🎉 No active unresolved tickets in your queue!</Text>
+          </View>
+        ) : (
+          grievances.map((item) => {
+            const isOverdue = new Date(item.deadline) < new Date() && item.status !== 'Resolved';
+            return (
+              <TouchableOpacity
+                key={item._id}
+                style={styles.grievanceCard}
+                onPress={() => onNavigate('GrievanceDetail', { id: item._id })}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={styles.ticketTitle}>{item.title}</Text>
+                  <View style={[styles.prioBadge, item.priority === 'Critical' && styles.criticalBadge]}>
+                    <Text style={styles.prioText}>{item.priority}</Text>
+                  </View>
+                </View>
 
-            <Text style={styles.metaText}>📍 {item.location} • 🏷️ {item.category}</Text>
+                <Text style={styles.metaText}>📍 {item.location} • 🏷️ {item.category}</Text>
 
-            <View style={styles.cardFooter}>
-              <Text style={styles.statusPill}>Status: {item.status}</Text>
-              <Text style={styles.deadlineText}>⏰ {item.deadline}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+                <View style={styles.cardFooter}>
+                  <Text style={styles.statusPill}>Status: {item.status}</Text>
+                  <Text style={[styles.deadlineText, isOverdue && styles.overdueText]}>
+                    ⏰ {isOverdue ? '⚠️ BREACHED' : new Date(item.deadline).toLocaleDateString()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
 
       {/* Mobile Bottom Navigation Bar */}
@@ -237,6 +270,47 @@ const styles = StyleSheet.create({
     color: '#C9962C',
     fontWeight: 'bold',
   },
+  loadingBox: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    marginTop: 8,
+  },
+  errorBox: {
+    padding: 16,
+    backgroundColor: 'rgba(192, 67, 59, 0.15)',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#C0433B',
+    fontSize: 13,
+  },
+  retryBtn: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#C0433B',
+    borderRadius: 6,
+  },
+  retryBtnText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  emptyBox: {
+    padding: 24,
+    backgroundColor: '#1E293B',
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#94A3B8',
+    fontSize: 13,
+  },
   grievanceCard: {
     backgroundColor: '#1E293B',
     borderRadius: 14,
@@ -295,6 +369,9 @@ const styles = StyleSheet.create({
   },
   deadlineText: {
     fontSize: 11,
+    color: '#94A3B8',
+  },
+  overdueText: {
     color: '#C0433B',
     fontWeight: 'bold',
   },

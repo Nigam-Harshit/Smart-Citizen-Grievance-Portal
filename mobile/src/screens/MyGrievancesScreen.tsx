@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { fetchMyGrievances } from '../services/grievanceService';
 
 interface MyGrievancesScreenProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -8,47 +9,30 @@ interface MyGrievancesScreenProps {
 
 export const MyGrievancesScreen: React.FC<MyGrievancesScreenProps> = ({ onNavigate }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
+  const [grievances, setGrievances] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const mockList = [
-    {
-      id: 'g1',
-      title: 'Contaminated Water Supply in Block 4',
-      category: 'Water Supply',
-      priority: 'Critical',
-      status: 'In Progress',
-      location: 'Sector 62, Block 4, Noida',
-      createdAt: '2026-08-27',
-      deadline: '2026-08-28',
-      officer: 'Officer Rakesh Sharma',
-    },
-    {
-      id: 'g2',
-      title: 'Severe Street Light Failure on Main Road',
-      category: 'Electricity',
-      priority: 'High',
-      status: 'Open',
-      location: 'Main Arterial Road, Sector 62',
-      createdAt: '2026-08-26',
-      deadline: '2026-08-29',
-      officer: 'Unassigned',
-    },
-    {
-      id: 'g3',
-      title: 'Garbage Dump Overflow Near Park Gate',
-      category: 'Sanitation',
-      priority: 'Medium',
-      status: 'Resolved',
-      location: 'Sector 15 Community Park',
-      createdAt: '2026-08-20',
-      deadline: '2026-08-27',
-      officer: 'Officer Priya Verma',
-    },
-  ];
+  useEffect(() => {
+    loadGrievanceList();
+  }, [filterStatus]);
 
-  const filteredList = mockList.filter((g) => {
-    if (filterStatus === 'All') return true;
-    return g.status === filterStatus;
-  });
+  const loadGrievanceList = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetchMyGrievances(filterStatus);
+      if (res.data && Array.isArray(res.data)) {
+        setGrievances(res.data);
+      } else if (res.error) {
+        setErrorMsg(res.error);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to load grievance list.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -79,34 +63,54 @@ export const MyGrievancesScreen: React.FC<MyGrievancesScreenProps> = ({ onNaviga
       </View>
 
       {/* Complaints List */}
-      <FlatList
-        data={filteredList}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => onNavigate('GrievanceDetail', { id: item.id })}
-          >
-            <View style={styles.cardHeader}>
-              <Text style={styles.title}>{item.title}</Text>
-              <View style={[styles.prioBadge, item.priority === 'Critical' && styles.criticalBadge]}>
-                <Text style={styles.prioText}>{item.priority}</Text>
-              </View>
-            </View>
-
-            <Text style={styles.meta}>📍 {item.location} • 🏷️ {item.category}</Text>
-            <Text style={styles.officerText}>👮 Assigned: {item.officer}</Text>
-
-            <View style={styles.cardFooter}>
-              <Text style={[styles.statusPill, item.status === 'Resolved' && styles.statusResolved]}>
-                Status: {item.status}
-              </Text>
-              <Text style={styles.dateText}>Filed: {item.createdAt}</Text>
-            </View>
+      {loading ? (
+        <View style={styles.centerBox}>
+          <ActivityIndicator size="small" color="#C9962C" />
+          <Text style={styles.loadingText}>Fetching My Complaints...</Text>
+        </View>
+      ) : errorMsg ? (
+        <View style={styles.centerBox}>
+          <Text style={styles.errorText}>⚠️ {errorMsg}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={loadGrievanceList}>
+            <Text style={styles.retryBtnText}>Retry Connection</Text>
           </TouchableOpacity>
-        )}
-      />
+        </View>
+      ) : grievances.length === 0 ? (
+        <View style={styles.centerBox}>
+          <Text style={styles.emptyText}>No complaints found matching "{filterStatus}" criteria.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={grievances}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.listContainer}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => onNavigate('GrievanceDetail', { id: item._id })}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.title}>{item.title}</Text>
+                <View style={[styles.prioBadge, item.priority === 'Critical' && styles.criticalBadge]}>
+                  <Text style={styles.prioText}>{item.priority}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.meta}>📍 {item.location} • 🏷️ {item.category}</Text>
+              <Text style={styles.officerText}>
+                👮 Assigned: {item.assignedTo?.name || item.officerName || 'Unassigned'}
+              </Text>
+
+              <View style={styles.cardFooter}>
+                <Text style={[styles.statusPill, item.status === 'Resolved' && styles.statusResolved]}>
+                  Status: {item.status}
+                </Text>
+                <Text style={styles.dateText}>Filed: {new Date(item.createdAt).toLocaleDateString()}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      )}
     </View>
   );
 };
@@ -166,6 +170,35 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: '#0F172A',
+  },
+  centerBox: {
+    padding: 30,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    marginTop: 8,
+  },
+  errorText: {
+    color: '#C0433B',
+    fontSize: 13,
+  },
+  retryBtn: {
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: '#C0433B',
+    borderRadius: 6,
+  },
+  retryBtnText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  emptyText: {
+    color: '#94A3B8',
+    fontSize: 13,
   },
   listContainer: {
     padding: 16,

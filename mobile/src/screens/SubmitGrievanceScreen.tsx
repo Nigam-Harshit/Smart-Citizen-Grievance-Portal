@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { postGrievance } from '../services/grievanceService';
+import { updateProfileInfo } from '../services/authService';
 
 interface SubmitGrievanceScreenProps {
   user: any;
@@ -19,7 +21,7 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
   const categories = ['Sanitation', 'Water Supply', 'Roads', 'Electricity', 'Public Safety'];
   const priorities = ['Low', 'Medium', 'High', 'Critical'];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title || !location || !description) {
       Alert.alert('Required Fields', 'Please fill in title, landmark location, and description.');
       return;
@@ -31,11 +33,32 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      if (!user?.phone && phone.trim()) {
+        await updateProfileInfo({ phone: phone.trim() });
+      }
+
+      const res = await postGrievance({
+        title,
+        category,
+        priority,
+        location,
+        description,
+      });
+
       setLoading(false);
-      Alert.alert('Grievance Lodged', 'Your municipal complaint ticket has been lodged successfully!');
+
+      if (res.error) {
+        Alert.alert('Submission Failed', res.error);
+        return;
+      }
+
+      Alert.alert('Grievance Lodged', `Your complaint #${res.data?._id?.substring(18) || ''} has been lodged successfully!`);
       onNavigate('MyGrievances');
-    }, 800);
+    } catch (err: any) {
+      setLoading(false);
+      Alert.alert('Network Error', err.message || 'Failed to submit complaint to portal server.');
+    }
   };
 
   const isPhoneMissing = !user?.phone && !phone;

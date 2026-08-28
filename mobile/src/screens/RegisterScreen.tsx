@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { registerCitizen } from '../services/authService';
 
 interface RegisterScreenProps {
   onNavigate: (screen: any) => void;
@@ -25,16 +26,22 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate, onRe
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await registerCitizen({ name, email, password });
       setLoading(false);
-      onRegisterSuccess({
-        _id: `citizen_${Date.now()}`,
-        name,
-        email,
-        role: 'citizen',
-      });
+
+      if (res.error) {
+        Alert.alert('Registration Failed', res.error);
+        return;
+      }
+
+      Alert.alert('Account Created', 'Your citizen account has been registered successfully!');
+      onRegisterSuccess(res.data);
       onNavigate('Home');
-    }, 800);
+    } catch (err: any) {
+      setLoading(false);
+      Alert.alert('Network Error', err.message || 'Unable to connect to portal server.');
+    }
   };
 
   return (

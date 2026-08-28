@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { updateProfileInfo, logoutCitizen } from '../services/authService';
 
 interface ProfileScreenProps {
   user: any;
@@ -9,22 +10,42 @@ interface ProfileScreenProps {
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, onLogout }) => {
-  const [name, setName] = useState(user?.name || 'Rajesh Kumar');
-  const [phone, setPhone] = useState(user?.phone || '+91 98100 12345');
-  const [address, setAddress] = useState(user?.address || 'Flat 402, Block B, Sector 62, Noida');
+  const [name, setName] = useState(user?.name || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [address, setAddress] = useState(user?.address || '');
   const [loading, setLoading] = useState(false);
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!name.trim()) {
       Alert.alert('Required Field', 'Name cannot be empty.');
       return;
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await updateProfileInfo({
+        name: name.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+      });
+
       setLoading(false);
+
+      if (res.error) {
+        Alert.alert('Update Failed', res.error);
+        return;
+      }
+
       Alert.alert('Profile Saved', 'Your account settings have been updated successfully.');
-    }, 600);
+    } catch (err: any) {
+      setLoading(false);
+      Alert.alert('Network Error', err.message || 'Failed to update profile.');
+    }
+  };
+
+  const handleSignOut = async () => {
+    await logoutCitizen();
+    onLogout();
   };
 
   return (
@@ -44,10 +65,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, 
         {/* User Card */}
         <View style={styles.userCard}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
+            <Text style={styles.avatarText}>{name ? name.charAt(0).toUpperCase() : 'U'}</Text>
           </View>
-          <Text style={styles.userName}>{name}</Text>
-          <Text style={styles.userEmail}>{user?.email || 'citizen.rajesh@gmail.com'}</Text>
+          <Text style={styles.userName}>{name || 'Citizen'}</Text>
+          <Text style={styles.userEmail}>{user?.email || 'citizen@example.com'}</Text>
 
           <View style={styles.roleBadge}>
             <Text style={styles.roleText}>🛡️ Role: {(user?.role || 'Citizen').toUpperCase()}</Text>
@@ -71,7 +92,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, 
             <Text style={styles.label}>Email Address (Read-only)</Text>
             <TextInput
               style={[styles.input, styles.inputDisabled]}
-              value={user?.email || 'citizen.rajesh@gmail.com'}
+              value={user?.email || ''}
               editable={false}
             />
           </View>
@@ -111,7 +132,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, 
         </View>
 
         {/* Sign Out Card */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut}>
           <Text style={styles.logoutBtnText}>🚪 Sign Out of Portal</Text>
         </TouchableOpacity>
       </ScrollView>

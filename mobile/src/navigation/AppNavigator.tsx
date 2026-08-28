@@ -13,13 +13,7 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 export const AppNavigator: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<RootScreen>('Splash');
   const [selectedGrievanceId, setSelectedGrievanceId] = useState<string | undefined>(undefined);
-  const [user, setUser] = useState<any>({
-    _id: 'mock_citizen_1',
-    name: 'Rajesh Kumar',
-    email: 'citizen.rajesh@gmail.com',
-    role: 'citizen',
-    phone: '+91 98100 12345',
-  });
+  const [user, setUser] = useState<any>(null);
 
   const handleNavigate = (screen: RootScreen, params?: any) => {
     if (params?.id) {
@@ -36,23 +30,76 @@ export const AppNavigator: React.FC = () => {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'Splash':
-        return <SplashScreen onNavigate={handleNavigate} />;
+        return (
+          <SplashScreen
+            onNavigate={handleNavigate}
+            onUserLoaded={(u) => setUser(u)}
+          />
+        );
       case 'Login':
-        return <LoginScreen onNavigate={handleNavigate} onLoginSuccess={(u) => { setUser(u); setCurrentScreen('Home'); }} />;
+        return (
+          <LoginScreen
+            onNavigate={handleNavigate}
+            onLoginSuccess={(u) => {
+              setUser(u);
+              setCurrentScreen('Home');
+            }}
+          />
+        );
       case 'Register':
-        return <RegisterScreen onNavigate={handleNavigate} onRegisterSuccess={(u) => { setUser(u); setCurrentScreen('Home'); }} />;
+        return (
+          <RegisterScreen
+            onNavigate={handleNavigate}
+            onRegisterSuccess={(u) => {
+              setUser(u);
+              setCurrentScreen('Home');
+            }}
+          />
+        );
       case 'Home':
-        return <HomeScreen user={user} onNavigate={handleNavigate} onLogout={handleLogout} />;
+        return (
+          <HomeScreen
+            user={user}
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+          />
+        );
       case 'SubmitGrievance':
-        return <SubmitGrievanceScreen user={user} onNavigate={handleNavigate} />;
+        return (
+          <SubmitGrievanceScreen
+            user={user}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'MyGrievances':
-        return <MyGrievancesScreen onNavigate={handleNavigate} />;
+        return (
+          <MyGrievancesScreen
+            onNavigate={handleNavigate}
+          />
+        );
       case 'GrievanceDetail':
-        return <GrievanceDetailScreen onNavigate={handleNavigate} grievanceId={selectedGrievanceId} />;
+        return (
+          <GrievanceDetailScreen
+            onNavigate={handleNavigate}
+            grievanceId={selectedGrievanceId}
+          />
+        );
       case 'Profile':
-        return <ProfileScreen user={user} onNavigate={handleNavigate} onLogout={handleLogout} />;
+        return (
+          <ProfileScreen
+            user={user}
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+          />
+        );
       default:
-        return <HomeScreen user={user} onNavigate={handleNavigate} onLogout={handleLogout} />;
+        return (
+          <HomeScreen
+            user={user}
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+          />
+        );
     }
   };
 

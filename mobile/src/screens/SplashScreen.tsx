@@ -1,18 +1,42 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { getSecureToken, getSecureUser } from '../services/secureStore';
+import { fetchCurrentProfile } from '../services/authService';
 
 interface SplashScreenProps {
   onNavigate: (screen: any) => void;
+  onUserLoaded: (user: any) => void;
 }
 
-export const SplashScreen: React.FC<SplashScreenProps> = ({ onNavigate }) => {
+export const SplashScreen: React.FC<SplashScreenProps> = ({ onNavigate, onUserLoaded }) => {
   useEffect(() => {
-    const timer = setTimeout(() => {
+    async function checkAuthSession() {
+      try {
+        const token = await getSecureToken();
+        const storedUser = await getSecureUser();
+
+        if (token && storedUser) {
+          const profileRes = await fetchCurrentProfile();
+          if (profileRes.data && profileRes.data._id) {
+            onUserLoaded(profileRes.data);
+            onNavigate('Home');
+            return;
+          }
+        }
+      } catch (err) {
+        console.log('Session auto-login skipped:', err);
+      }
+
       onNavigate('Login');
-    }, 2000);
+    }
+
+    const timer = setTimeout(() => {
+      checkAuthSession();
+    }, 1500);
+
     return () => clearTimeout(timer);
-  }, [onNavigate]);
+  }, [onNavigate, onUserLoaded]);
 
   return (
     <View style={styles.container}>
@@ -22,7 +46,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onNavigate }) => {
         <Text style={styles.brandTitle}>Smart Citizen</Text>
         <Text style={styles.brandSubtitle}>Municipal Grievance Platform</Text>
         <ActivityIndicator size="large" color="#C9962C" style={styles.loader} />
-        <Text style={styles.loadingText}>Initializing Secure Keychain...</Text>
+        <Text style={styles.loadingText}>Validating Encrypted Keychain Token...</Text>
       </View>
 
       <TouchableOpacity style={styles.skipBtn} onPress={() => onNavigate('Login')}>

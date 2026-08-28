@@ -109,7 +109,7 @@ const MasterGrievances = () => {
                             <option value="">All Categories</option>
                             <option value="Sanitation">Sanitation</option>
                             <option value="Water Supply">Water Supply</option>
-                            <option value="Roads">Roads & Traffic</option>
+                            <option value="Roads & Traffic">Roads & Traffic</option>
                             <option value="Electricity">Electricity</option>
                             <option value="Public Safety">Public Safety</option>
                         </select>

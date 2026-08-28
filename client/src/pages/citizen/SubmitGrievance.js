@@ -109,7 +109,7 @@ const SubmitGrievance = () => {
                                     <select value={category} onChange={(e) => setCategory(e.target.value)} required>
                                         <option value="Sanitation">🧹 Sanitation & Garbage</option>
                                         <option value="Water Supply">💧 Water Supply & Drainage</option>
-                                        <option value="Roads">🚦 Roads & Potholes</option>
+                                        <option value="Roads & Traffic">🚦 Roads & Potholes</option>
                                         <option value="Electricity">⚡ Street Lighting & Power</option>
                                         <option value="Public Safety">🛡️ Public Safety & Nuisance</option>
                                     </select>

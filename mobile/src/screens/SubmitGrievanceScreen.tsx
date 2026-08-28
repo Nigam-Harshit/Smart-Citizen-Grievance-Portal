@@ -18,7 +18,7 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
   const [phone, setPhone] = useState(user?.phone || '');
   const [loading, setLoading] = useState(false);
 
-  const categories = ['Sanitation', 'Water Supply', 'Roads', 'Electricity', 'Public Safety'];
+  const categories = ['Sanitation', 'Water Supply', 'Roads & Traffic', 'Electricity', 'Public Safety'];
   const priorities = ['Low', 'Medium', 'High', 'Critical'];
 
   const handleSubmit = async () => {

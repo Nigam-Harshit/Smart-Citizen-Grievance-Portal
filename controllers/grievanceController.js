@@ -198,6 +198,9 @@ const createGrievance = async (req, res) => {
         res.status(201).json(grievance);
     } catch (error) {
         console.error('createGrievance error:', error);
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: error.message });
+        }
         res.status(500).json({ message: error.message });
     }
 };
@@ -274,6 +277,9 @@ const updateGrievance = async (req, res) => {
         res.status(200).json(updatedGrievance);
     } catch (error) {
         console.error('updateGrievance error:', error);
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: error.message });
+        }
         res.status(500).json({ message: error.message });
     }
 };

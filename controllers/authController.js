@@ -1,7 +1,6 @@
 const User = require('../models/User');
 const Citizen = require('../models/Citizen');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const { logAudit } = require('./auditController');
 
 const generateToken = (id) => {
@@ -10,18 +9,18 @@ const generateToken = (id) => {
     });
 };
 
-// Public registration - strictly locks role to 'citizen'
+// Public registration - strictly locks role to 'citizen', requires name, email, password only
 const registerUser = async (req, res) => {
     try {
         const { name, email, password, phone, contact, address } = req.body;
 
         if (!name || !email || !password) {
-            return res.status(400).json({ message: 'Please add all required fields' });
+            return res.status(400).json({ message: 'Please provide full name, email, and password' });
         }
 
         const userExists = await User.findOne({ email });
         if (userExists) {
-            return res.status(400).json({ message: 'User already exists' });
+            return res.status(400).json({ message: 'A user with this email address already exists' });
         }
 
         // Public registration is ALWAYS forced to 'citizen'
@@ -30,14 +29,15 @@ const registerUser = async (req, res) => {
             email,
             password,
             phone: phone || contact || '',
-            role: 'citizen'
+            role: 'citizen',
+            scope: 'All'
         });
 
-        // Create linked Citizen profile
+        // Create linked Citizen profile (phone & address optional)
         const citizen = await Citizen.create({
             name,
             email,
-            contact: phone || contact || 'N/A',
+            contact: phone || contact || '',
             address: address || '',
             linkedUserId: user._id,
             status: 'Active'
@@ -53,24 +53,26 @@ const registerUser = async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
+            scope: user.scope || 'All',
             linkedCitizenId: citizen._id,
             token: generateToken(user._id)
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Registration Error:', error);
+        res.status(500).json({ message: error.message || 'Server error during registration' });
     }
 };
 
-// Admin endpoint to create Staff / Officer / Manager / Admin accounts
+// Admin endpoint to create Staff / Officer / Manager / Admin accounts with scope
 const createStaffUser = async (req, res) => {
     try {
-        const { name, email, password, role, phone } = req.body;
+        const { name, email, password, role, scope, phone } = req.body;
 
         if (!name || !email || !password || !role) {
             return res.status(400).json({ message: 'Please provide name, email, password and role' });
         }
 
-        const validRoles = ['admin', 'manager', 'officer'];
+        const validRoles = ['admin', 'manager', 'officer', 'field_officer'];
         if (!validRoles.includes(role)) {
             return res.status(400).json({ message: 'Invalid role for staff creation' });
         }
@@ -85,18 +87,21 @@ const createStaffUser = async (req, res) => {
             email,
             password,
             phone: phone || '',
-            role
+            role: role === 'field_officer' ? 'officer' : role,
+            scope: scope || 'All'
         });
 
-        await logAudit(req.user._id, 'Create Staff User', `Admin ${req.user.name} created new ${role} account: ${name}.`);
+        await logAudit(req.user._id, 'Create Staff User', `Admin ${req.user.name} created new ${role} account: ${name} (Scope: ${user.scope}).`);
 
         res.status(201).json({
             _id: user._id,
             name: user.name,
             email: user.email,
-            role: user.role
+            role: user.role,
+            scope: user.scope
         });
     } catch (error) {
+        console.error('Create Staff Error:', error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -104,6 +109,10 @@ const createStaffUser = async (req, res) => {
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Please provide email and password' });
+        }
 
         const user = await User.findOne({ email }).select('+password');
 
@@ -114,6 +123,7 @@ const loginUser = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                scope: user.scope || 'All',
                 linkedCitizenId: user.linkedCitizenId,
                 token: generateToken(user._id)
             });
@@ -121,7 +131,8 @@ const loginUser = async (req, res) => {
             res.status(401).json({ message: 'Invalid credentials' });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Login Error:', error);
+        res.status(500).json({ message: error.message || 'Server error during login' });
     }
 };
 
@@ -134,6 +145,7 @@ const getMe = async (req, res) => {
             phone: req.user.phone,
             notifications: req.user.notifications,
             role: req.user.role,
+            scope: req.user.scope || 'All',
             linkedCitizenId: req.user.linkedCitizenId
         };
 
@@ -234,11 +246,15 @@ const updateProfile = async (req, res) => {
 
             // Also update linked citizen record if citizen
             if (user.linkedCitizenId) {
-                await Citizen.findByIdAndUpdate(user.linkedCitizenId, {
+                const citizenUpdate = {
                     name: updatedUser.name,
                     email: updatedUser.email,
                     contact: updatedUser.phone
-                });
+                };
+                if (req.body.address !== undefined) {
+                    citizenUpdate.address = req.body.address;
+                }
+                await Citizen.findByIdAndUpdate(user.linkedCitizenId, citizenUpdate);
             }
 
             res.json({
@@ -248,6 +264,7 @@ const updateProfile = async (req, res) => {
                 phone: updatedUser.phone,
                 notifications: updatedUser.notifications,
                 role: updatedUser.role,
+                scope: updatedUser.scope || 'All',
                 linkedCitizenId: updatedUser.linkedCitizenId,
                 token: generateToken(updatedUser._id)
             });
@@ -261,7 +278,7 @@ const updateProfile = async (req, res) => {
 
 const getStaffUsers = async (req, res) => {
     try {
-        const officers = await User.find({ role: { $in: ['admin', 'manager', 'officer'] } }).select('name email role phone');
+        const officers = await User.find({ role: { $in: ['admin', 'manager', 'officer', 'field_officer'] } }).select('name email role scope phone');
         res.status(200).json(officers);
     } catch (error) {
         res.status(500).json({ message: error.message });

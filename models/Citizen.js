@@ -12,7 +12,7 @@ const citizenSchema = new mongoose.Schema({
     },
     contact: {
         type: String,
-        required: [true, 'Please add a contact number']
+        default: ''
     },
     address: {
         type: String,
@@ -25,7 +25,7 @@ const citizenSchema = new mongoose.Schema({
     },
     escalationRisk: {
         type: String,
-        enum: ['Low', 'Medium', 'High'],
+        enum: ['Low', 'Medium', 'High', 'Critical'],
         default: 'Low'
     },
     assignedTo: {

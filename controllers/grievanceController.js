@@ -12,7 +12,9 @@ const getGrievances = async (req, res) => {
         let query = {};
 
         if (req.user) {
-            if (req.user.role === 'citizen') {
+            const role = req.user.role;
+            
+            if (role === 'citizen') {
                 let citizenDoc = await Citizen.findOne({ linkedUserId: req.user._id });
                 if (!citizenDoc && req.user.linkedCitizenId) {
                     citizenDoc = await Citizen.findById(req.user.linkedCitizenId);
@@ -22,15 +24,26 @@ const getGrievances = async (req, res) => {
                 } else {
                     return res.status(200).json([]);
                 }
-            } else if (req.user.role === 'officer') {
+            } else if (role === 'officer' || role === 'field_officer') {
                 query.assignedTo = req.user._id;
+            } else if (role === 'manager') {
+                if (req.user.scope && req.user.scope !== 'All') {
+                    query.category = req.user.scope;
+                }
             }
         }
 
         if (citizenId) query.citizenId = citizenId;
         if (status) query.status = status;
         if (priority) query.priority = priority;
-        if (category) query.category = category;
+
+        // If manager attempts to explicitly query a category outside their scope, reject or enforce scope
+        if (category) {
+            if (req.user && req.user.role === 'manager' && req.user.scope && req.user.scope !== 'All' && category !== req.user.scope) {
+                return res.status(403).json({ message: `Access denied: Your manager scope is restricted to ${req.user.scope}` });
+            }
+            query.category = category;
+        }
 
         if (startDate && endDate) {
             query.createdAt = {
@@ -45,11 +58,12 @@ const getGrievances = async (req, res) => {
 
         const grievances = await Grievance.find(query)
             .populate('citizenId', 'name email contact address escalationRisk')
-            .populate('assignedTo', 'name email role')
+            .populate('assignedTo', 'name email role scope')
             .sort('-createdAt');
 
         res.status(200).json(grievances);
     } catch (error) {
+        console.error('getGrievances error:', error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -58,14 +72,34 @@ const getGrievanceById = async (req, res) => {
     try {
         const grievance = await Grievance.findById(req.params.id)
             .populate('citizenId', 'name email contact address escalationRisk')
-            .populate('assignedTo', 'name email role');
+            .populate('assignedTo', 'name email role scope');
 
         if (!grievance) {
             return res.status(404).json({ message: 'Grievance not found' });
         }
 
+        // Server-side Scope & Role Check
+        if (req.user) {
+            const role = req.user.role;
+            if (role === 'citizen') {
+                const citizenDoc = await Citizen.findOne({ linkedUserId: req.user._id });
+                if (!citizenDoc || String(grievance.citizenId?._id || grievance.citizenId) !== String(citizenDoc._id)) {
+                    return res.status(403).json({ message: 'Access forbidden: You can only view your own submitted grievances' });
+                }
+            } else if (role === 'officer' || role === 'field_officer') {
+                if (!grievance.assignedTo || String(grievance.assignedTo._id || grievance.assignedTo) !== String(req.user._id)) {
+                    return res.status(403).json({ message: 'Access forbidden: Grievance is not assigned to you' });
+                }
+            } else if (role === 'manager') {
+                if (req.user.scope && req.user.scope !== 'All' && grievance.category !== req.user.scope) {
+                    return res.status(403).json({ message: `Access forbidden: Grievance category (${grievance.category}) is outside your manager scope (${req.user.scope})` });
+                }
+            }
+        }
+
         res.status(200).json(grievance);
     } catch (error) {
+        console.error('getGrievanceById error:', error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -89,7 +123,7 @@ const createGrievance = async (req, res) => {
                 citizenDoc = await Citizen.create({
                     name: req.user.name,
                     email: req.user.email,
-                    contact: req.user.phone || 'N/A',
+                    contact: req.user.phone || '',
                     linkedUserId: req.user._id
                 });
                 req.user.linkedCitizenId = citizenDoc._id;
@@ -124,7 +158,6 @@ const createGrievance = async (req, res) => {
             deadline.setDate(now.getDate() + 14); // 14 days
         }
 
-        // Assign default officer if assignedTo specified or leave for assignment
         let officerName = '';
         if (assignedTo) {
             const officer = await User.findById(assignedTo);
@@ -164,6 +197,7 @@ const createGrievance = async (req, res) => {
 
         res.status(201).json(grievance);
     } catch (error) {
+        console.error('createGrievance error:', error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -173,6 +207,22 @@ const updateGrievance = async (req, res) => {
         const grievance = await Grievance.findById(req.params.id);
         if (!grievance) {
             return res.status(404).json({ message: 'Grievance not found' });
+        }
+
+        // Server-side Scope & Role Check for Updates
+        if (req.user) {
+            const role = req.user.role;
+            if (role === 'officer' || role === 'field_officer') {
+                if (!grievance.assignedTo || String(grievance.assignedTo) !== String(req.user._id)) {
+                    return res.status(403).json({ message: 'Access forbidden: You can only update grievances assigned to you' });
+                }
+            } else if (role === 'manager') {
+                if (req.user.scope && req.user.scope !== 'All' && grievance.category !== req.user.scope) {
+                    return res.status(403).json({ message: `Access forbidden: Grievance category (${grievance.category}) is outside your manager scope (${req.user.scope})` });
+                }
+            } else if (role === 'citizen') {
+                return res.status(403).json({ message: 'Citizens cannot directly update grievance administrative metadata' });
+            }
         }
 
         const oldStatus = grievance.status;
@@ -192,7 +242,7 @@ const updateGrievance = async (req, res) => {
             updateData,
             { new: true, runValidators: true }
         ).populate('citizenId', 'name email contact address')
-         .populate('assignedTo', 'name email role');
+         .populate('assignedTo', 'name email role scope');
 
         if (updateData.status && updateData.status !== oldStatus) {
             await GrievanceUpdate.create({
@@ -223,76 +273,99 @@ const updateGrievance = async (req, res) => {
 
         res.status(200).json(updatedGrievance);
     } catch (error) {
+        console.error('updateGrievance error:', error);
         res.status(500).json({ message: error.message });
     }
 };
 
+/**
+ * Task 4: Explainable Heuristic SLA Escalation Risk Engine
+ * Inputs:
+ * - Ticket Priority (Critical=40, High=30, Medium=15, Low=5)
+ * - SLA Overdue Hours (Hours past deadline * 2)
+ * - Category Weighting (Water Supply/Sanitation/Public Safety = 10, others = 0)
+ * - Citizen Unresolved Complaints Count (* 5)
+ *
+ * Scoring Output:
+ * - Total Score >= 60 -> 'Critical' (Urgent supervisor intervention & officer dispatch)
+ * - Total Score 35-59 -> 'High' (Imminent SLA breach)
+ * - Total Score 15-34 -> 'Medium' (Moderate delay/inactivity)
+ * - Total Score < 15  -> 'Low' (Normal operational window)
+ */
 const generateInsights = async (req, res) => {
     try {
         const citizens = await Citizen.find();
         const insights = [];
 
         for (const citizen of citizens) {
-            const openGrievances = await Grievance.countDocuments({
+            const citizenGrievances = await Grievance.find({
                 citizenId: citizen._id,
                 status: { $ne: 'Resolved' }
             });
 
-            const criticalGrievances = await Grievance.countDocuments({
-                citizenId: citizen._id,
-                priority: 'Critical',
-                status: { $ne: 'Resolved' }
-            });
-
-            const overdueGrievances = await Grievance.countDocuments({
-                citizenId: citizen._id,
-                status: { $ne: 'Resolved' },
-                deadline: { $lt: new Date() }
-            });
-
-            const lastActivityDate = citizen.lastActivity ? new Date(citizen.lastActivity) : new Date();
-            const daysInactive = Math.floor((Date.now() - lastActivityDate) / (1000 * 60 * 60 * 24));
-
-            let riskScore = 'Low';
-            let recommendation = 'Grievance filings are within normal thresholds. Standard resolution workflow active.';
+            const openCount = citizenGrievances.length;
+            let highestCalculatedScore = 0;
             let riskFactors = [];
+            let dominantCategory = '';
 
-            if (criticalGrievances >= 1 || overdueGrievances >= 1) {
-                riskScore = 'High';
-                let reasons = [];
-                if (criticalGrievances > 0) {
-                    reasons.push(`${criticalGrievances} Critical issue(s) unresolved`);
-                    riskFactors.push(`${criticalGrievances} Unresolved Critical Grievance(s)`);
+            for (const g of citizenGrievances) {
+                let priorityWeight = 5;
+                if (g.priority === 'Critical') priorityWeight = 40;
+                else if (g.priority === 'High') priorityWeight = 30;
+                else if (g.priority === 'Medium') priorityWeight = 15;
+
+                let categoryWeight = 0;
+                if (['Water Supply', 'Sanitation', 'Public Safety'].includes(g.category)) {
+                    categoryWeight = 10;
                 }
-                if (overdueGrievances > 0) {
-                    reasons.push(`${overdueGrievances} SLA Breached / Overdue Grievance(s)`);
-                    riskFactors.push(`${overdueGrievances} Overdue SLA Breaches`);
+
+                let slaOverdueHours = 0;
+                const now = new Date();
+                if (g.deadline && now > new Date(g.deadline)) {
+                    slaOverdueHours = Math.floor((now - new Date(g.deadline)) / (1000 * 60 * 60));
                 }
-                recommendation = `URGENT ESCALATION: ${reasons.join(' and ')}. Immediate officer dispatch and supervisor intervention required.`;
-            } else if (openGrievances >= 3) {
-                riskScore = 'High';
-                riskFactors.push(`Multiple Open Complaints: ${openGrievances}`);
-                recommendation = `High Escalation Risk due to ${openGrievances} active open complaints. Assign a senior officer to consolidate response.`;
-            } else if (daysInactive > 14 || openGrievances >= 1) {
-                riskScore = 'Medium';
-                if (daysInactive > 14) {
-                    riskFactors.push(`Inactivity: No updates for ${daysInactive} days`);
-                    recommendation = `Pending grievance requires follow-up. Citizen inactive for ${daysInactive} days.`;
-                } else {
-                    riskFactors.push(`${openGrievances} Active Grievance pending resolution`);
-                    recommendation = `Monitor resolution progress. ${openGrievances} grievance pending.`;
+
+                // Explicit Heuristic Formula
+                const ticketScore = priorityWeight + (slaOverdueHours * 2) + categoryWeight + (openCount * 5);
+                if (ticketScore > highestCalculatedScore) {
+                    highestCalculatedScore = ticketScore;
+                    dominantCategory = g.category;
                 }
-            } else {
-                riskFactors.push('No Critical Issues');
-                riskFactors.push('Standard Resolution Timeline');
+
+                if (g.priority === 'Critical') {
+                    riskFactors.push(`Critical Priority Ticket: ${g.title}`);
+                }
+                if (slaOverdueHours > 0) {
+                    riskFactors.push(`SLA Breached by ${slaOverdueHours}h: ${g.title}`);
+                }
             }
 
-            citizen.escalationRisk = riskScore;
+            if (openCount >= 3) {
+                riskFactors.push(`Multiple Active Complaints (${openCount})`);
+            }
+
+            let riskLabel = 'Low';
+            let recommendation = 'Grievance filings are within normal SLA thresholds. Standard resolution workflow active.';
+
+            if (highestCalculatedScore >= 60) {
+                riskLabel = 'Critical';
+                recommendation = `CRITICAL ESCALATION (Score: ${highestCalculatedScore}): SLA breach or high-priority risk in ${dominantCategory || 'service area'}. Urgent officer dispatch & supervisor intervention required.`;
+            } else if (highestCalculatedScore >= 35) {
+                riskLabel = 'High';
+                recommendation = `HIGH RISK (Score: ${highestCalculatedScore}): SLA deadline imminent or breached. Assign senior field officer to expedite response.`;
+            } else if (highestCalculatedScore >= 15 || openCount >= 1) {
+                riskLabel = 'Medium';
+                recommendation = `MODERATE RISK (Score: ${highestCalculatedScore}): Active complaint pending resolution. Monitor field progress.`;
+            } else {
+                riskFactors.push('No Active SLA Breaches');
+            }
+
+            citizen.escalationRisk = riskLabel === 'Critical' ? 'High' : riskLabel;
             await citizen.save();
 
             let insight = await Insight.findOne({ citizenId: citizen._id });
             if (insight) {
-                insight.riskScore = riskScore;
+                insight.riskScore = riskLabel;
                 insight.recommendation = recommendation;
                 insight.riskFactors = riskFactors;
                 insight.generatedAt = Date.now();
@@ -300,7 +373,7 @@ const generateInsights = async (req, res) => {
             } else {
                 insight = await Insight.create({
                     citizenId: citizen._id,
-                    riskScore,
+                    riskScore: riskLabel,
                     recommendation,
                     riskFactors
                 });
@@ -308,10 +381,11 @@ const generateInsights = async (req, res) => {
             insights.push(insight);
         }
 
-        await logAudit(req.user._id, 'Run Escalation Risk Model', 'Executed AI Escalation Risk model across all citizen accounts.');
+        await logAudit(req.user._id, 'Run Escalation Risk Engine', 'Executed Heuristic SLA Escalation Risk Engine across citizen accounts.');
 
         res.status(200).json(insights);
     } catch (error) {
+        console.error('generateInsights error:', error);
         res.status(500).json({ message: error.message });
     }
 };

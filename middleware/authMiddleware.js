@@ -20,7 +20,7 @@ const protect = async (req, res, next) => {
 
             return next();
         } catch (error) {
-            console.error(error);
+            console.error('JWT Auth Middleware Error:', error.message);
             return res.status(401).json({ message: 'Not authorized, token failed' });
         }
     }
@@ -28,6 +28,24 @@ const protect = async (req, res, next) => {
     if (!token) {
         return res.status(401).json({ message: 'Not authorized, no token' });
     }
+};
+
+const requireRole = (allowedRoles = []) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Not authorized' });
+        }
+
+        const rolesArray = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+        const normalizedUserRole = req.user.role === 'field_officer' ? 'officer' : req.user.role;
+        const normalizedAllowed = rolesArray.map(r => r === 'field_officer' ? 'officer' : r);
+
+        if (normalizedAllowed.includes(normalizedUserRole)) {
+            return next();
+        } else {
+            return res.status(403).json({ message: `Access forbidden for role ${req.user.role}` });
+        }
+    };
 };
 
 const admin = (req, res, next) => {
@@ -47,7 +65,7 @@ const adminOrManager = (req, res, next) => {
 };
 
 const officerOrAdmin = (req, res, next) => {
-    if (req.user && (req.user.role === 'admin' || req.user.role === 'manager' || req.user.role === 'officer')) {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'manager' || req.user.role === 'officer' || req.user.role === 'field_officer')) {
         next();
     } else {
         res.status(403).json({ message: 'Not authorized as staff/officer or admin' });
@@ -62,4 +80,4 @@ const citizenOnly = (req, res, next) => {
     }
 };
 
-module.exports = { protect, admin, adminOrManager, officerOrAdmin, citizenOnly };
+module.exports = { protect, requireRole, admin, adminOrManager, officerOrAdmin, citizenOnly };

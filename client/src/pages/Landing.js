@@ -43,7 +43,7 @@ const Landing = () => {
                 </h1>
 
                 <p style={{ fontSize: '1.15rem', color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 auto', maxWidth: '750px' }}>
-                    Streamlined public complaint submission, transparent 4-step resolution lifecycles, field officer dispatch, priority SLA tracking, and AI-driven municipal escalation insights.
+                    Streamlined public complaint submission, transparent 4-step resolution lifecycles, field officer dispatch, priority SLA tracking, and explainable SLA escalation risk analytics.
                 </p>
 
                 {/* CTAs */}
@@ -102,9 +102,9 @@ const Landing = () => {
 
                 <div className="glass-panel glass-card-interactive stagger-in" style={{ padding: '2rem', borderRadius: '16px' }}>
                     <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>✨</div>
-                    <h3 style={{ marginBottom: '0.5rem', fontSize: '1.15rem' }}>AI Escalation Risk Matrix</h3>
+                    <h3 style={{ marginBottom: '0.5rem', fontSize: '1.15rem' }}>Explainable SLA Risk Matrix</h3>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.55' }}>
-                        Predictive machine learning models flagging unresolved critical complaints, breach ages, and generating actionable supervisor dispatch recommendations.
+                        Transparent heuristic scoring combining ticket priority, overdue breach hours, category weighting, and unresolved volume to generate supervisor dispatch recommendations.
                     </p>
                 </div>
             </section>

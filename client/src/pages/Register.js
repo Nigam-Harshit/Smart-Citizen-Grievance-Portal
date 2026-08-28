@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 
 const Register = () => {
-    const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '', address: '' });
+    const [formData, setFormData] = useState({ name: '', email: '', password: '' });
     const { register } = useContext(AuthContext);
     const navigate = useNavigate();
     const [error, setError] = useState('');
@@ -14,7 +14,11 @@ const Register = () => {
         setIsLoading(true);
         setError('');
         try {
-            await register(formData);
+            await register({
+                name: formData.name,
+                email: formData.email,
+                password: formData.password
+            });
             navigate('/citizen');
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed. Try again.');
@@ -25,13 +29,13 @@ const Register = () => {
 
     return (
         <div className="auth-container">
-            <div className="auth-form glass-panel stagger-in" style={{ maxWidth: '480px' }}>
+            <div className="auth-form glass-panel stagger-in" style={{ maxWidth: '440px' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                     <h1 style={{ color: 'var(--text-primary)', margin: '0 0 0.5rem 0', fontSize: '1.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
                         <span>🏛️</span> <span style={{ fontFamily: 'Fraunces, serif' }}>Citizen Portal</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.88rem' }}>
-                        Register for a Citizen Grievance & Tracking Account
+                        Quick 3-step registration to lodge & track civic grievances
                     </p>
                 </div>
 
@@ -65,27 +69,6 @@ const Register = () => {
                     </div>
 
                     <div className="form-group">
-                        <label>Contact Phone *</label>
-                        <input
-                            type="text"
-                            placeholder="+91 98100 12345"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                            required
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label>Residential Address</label>
-                        <input
-                            type="text"
-                            placeholder="Flat 402, Sector 62, Noida"
-                            value={formData.address}
-                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="form-group">
                         <label>Password *</label>
                         <input
                             type="password"
@@ -98,7 +81,7 @@ const Register = () => {
                     </div>
 
                     <button type="submit" disabled={isLoading} className="btn-municipal" style={{ width: '100%', marginTop: '0.5rem' }}>
-                        {isLoading ? 'Creating Account...' : '📝 Register Citizen Account'}
+                        {isLoading ? 'Creating Account...' : '📝 Register Account'}
                     </button>
 
                     <div style={{ textAlign: 'center', marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.88rem' }}>

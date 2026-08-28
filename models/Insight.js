@@ -8,7 +8,7 @@ const insightSchema = new mongoose.Schema({
     },
     riskScore: {
         type: String,
-        enum: ['Low', 'Medium', 'High'],
+        enum: ['Low', 'Medium', 'High', 'Critical'],
         default: 'Low'
     },
     recommendation: {

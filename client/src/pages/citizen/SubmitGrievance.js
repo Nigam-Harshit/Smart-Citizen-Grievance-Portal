@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Topbar from '../../components/Topbar';
 import API from '../../utils/api';
+import AuthContext from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const SubmitGrievance = () => {
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
+
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('Sanitation');
     const [location, setLocation] = useState('');
     const [priority, setPriority] = useState('Medium');
+    const [phone, setPhone] = useState(user?.phone || '');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -20,8 +24,18 @@ const SubmitGrievance = () => {
             return;
         }
 
+        if (!user?.phone && !phone.trim()) {
+            alert('Please enter your contact phone number for field officer dispatch.');
+            return;
+        }
+
         setLoading(true);
         try {
+            // Save phone to profile if user phone was empty
+            if (!user?.phone && phone.trim()) {
+                await API.put('/api/auth/profile', { phone });
+            }
+
             const { data } = await API.post('/api/grievances', {
                 title,
                 description,
@@ -38,6 +52,8 @@ const SubmitGrievance = () => {
             setLoading(false);
         }
     };
+
+    const isPhoneMissing = !user?.phone && !phone;
 
     return (
         <div style={{ display: 'flex' }}>
@@ -56,7 +72,26 @@ const SubmitGrievance = () => {
                             </p>
                         </div>
 
+                        {isPhoneMissing && (
+                            <div style={{ padding: '1rem', background: 'var(--accent-amber-dim)', border: '1px solid var(--accent-amber)', borderRadius: '10px', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                                📌 <strong>Contact Phone Required:</strong> Please provide your phone number below so field officers can contact you during site inspection.
+                            </div>
+                        )}
+
                         <form onSubmit={handleSubmit}>
+                            {(!user?.phone || isPhoneMissing) && (
+                                <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+                                    <label>Contact Phone Number *</label>
+                                    <input
+                                        type="text"
+                                        placeholder="+91 98100 12345"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                            )}
+
                             <div className="form-group">
                                 <label>Grievance Title *</label>
                                 <input

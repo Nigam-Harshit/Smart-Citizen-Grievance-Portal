@@ -11,15 +11,17 @@ const Profile = () => {
         name: user?.name || '',
         email: user?.email || '',
         phone: user?.phone || '',
+        address: user?.address || '',
         notifications: true
     });
     
     // Calculate simple completion %
     const calculateCompletion = () => {
         let score = 50; 
-        if (formData.name) score += 20;
-        if (formData.email) score += 20;
+        if (formData.name) score += 15;
+        if (formData.email) score += 15;
         if (formData.phone) score += 10;
+        if (formData.address) score += 10;
         return score;
     };
 
@@ -88,7 +90,7 @@ const Profile = () => {
                                         background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', padding: '0.4rem 0.8rem', 
                                         borderRadius: '12px', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold'
                                     }}>
-                                        {user?.role} Access
+                                        {user?.role} Access {user?.scope && user.scope !== 'All' ? `(${user.scope})` : ''}
                                     </span>
                                     <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                                         Profile {calculateCompletion()}% Complete
@@ -120,11 +122,20 @@ const Profile = () => {
                                 </div>
 
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '8px', textTransform: 'uppercase' }}>Phone Number</h4>
+                                    <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '8px', textTransform: 'uppercase' }}>Contact Phone</h4>
                                     {editMode ? (
                                         <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="Add phone number" style={{ width: '100%', padding: '0.6rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '4px' }} />
                                     ) : (
                                         <p style={{ color: formData.phone ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '1rem', margin: 0 }}>{formData.phone || 'Not provided'}</p>
+                                    )}
+                                </div>
+
+                                <div style={{ marginBottom: '1.5rem' }}>
+                                    <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '8px', textTransform: 'uppercase' }}>Residential Address</h4>
+                                    {editMode ? (
+                                        <input type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Add residential address" style={{ width: '100%', padding: '0.6rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '4px' }} />
+                                    ) : (
+                                        <p style={{ color: formData.address ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '1rem', margin: 0 }}>{formData.address || 'Not provided'}</p>
                                     )}
                                 </div>
                             </div>
@@ -150,9 +161,6 @@ const Profile = () => {
                                 </div>
                             </div>
                         </div>
-
-
-
                     </div>
                 </div>
             </div>

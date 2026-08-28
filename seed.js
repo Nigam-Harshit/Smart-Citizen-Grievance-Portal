@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const bcrypt = require('bcryptjs');
 
 dotenv.config();
 
@@ -35,14 +34,16 @@ const seedData = async (skipConnect = false) => {
             email: 'admin@grievance.gov.in',
             password: 'Password123!',
             role: 'admin',
+            scope: 'All',
             phone: '+91 98765 00001'
         });
 
         const managerUser = await User.create({
-            name: 'Civic Manager - North Zone',
+            name: 'Civic Manager - Water & Sanitation',
             email: 'manager@grievance.gov.in',
             password: 'Password123!',
             role: 'manager',
+            scope: 'Water Supply',
             phone: '+91 98765 00002'
         });
 
@@ -51,6 +52,7 @@ const seedData = async (skipConnect = false) => {
             email: 'officer.sharma@grievance.gov.in',
             password: 'Password123!',
             role: 'officer',
+            scope: 'Water Supply',
             phone: '+91 98765 11111'
         });
 
@@ -59,6 +61,7 @@ const seedData = async (skipConnect = false) => {
             email: 'officer.verma@grievance.gov.in',
             password: 'Password123!',
             role: 'officer',
+            scope: 'Roads & Traffic',
             phone: '+91 98765 22222'
         });
 
@@ -67,6 +70,7 @@ const seedData = async (skipConnect = false) => {
             email: 'citizen.rajesh@gmail.com',
             password: 'Password123!',
             role: 'citizen',
+            scope: 'All',
             phone: '+91 98100 12345'
         });
 
@@ -160,7 +164,7 @@ const seedData = async (skipConnect = false) => {
             status: 'In Progress',
             assignedTo: officer1._id,
             officerName: officer1.name,
-            deadline: overdueDeadline, // Overdue SLA breach
+            deadline: overdueDeadline,
             createdAt: past5Days
         });
 
@@ -345,13 +349,6 @@ const seedData = async (skipConnect = false) => {
         });
 
         console.log('✅ Seeding completed successfully!');
-        console.log('\n--- DEMO USER CREDENTIALS ---');
-        console.log('🔑 Admin:   admin@grievance.gov.in    / Password123!');
-        console.log('🔑 Manager: manager@grievance.gov.in  / Password123!');
-        console.log('🔑 Officer: officer.sharma@grievance.gov.in / Password123!');
-        console.log('🔑 Citizen: citizen.rajesh@gmail.com / Password123!');
-        console.log('-------------------------------\n');
-
         if (require.main === module) {
             process.exit(0);
         }

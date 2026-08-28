@@ -8,11 +8,11 @@ const connectDB = async () => {
   }
 
   let isMemoryServer = false;
-  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.MONGO_URI;
+  const isProduction = (process.env.NODE_ENV === 'production' || !!process.env.MONGO_URI) && process.env.USE_MEMORY_DB !== 'true' && process.env.NODE_ENV !== 'test';
 
   try {
     const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/citizen_grievance_portal';
-    const conn = await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 });
+    const conn = await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     if (isProduction) {
@@ -21,7 +21,7 @@ const connectDB = async () => {
       process.exit(1);
     }
 
-    console.log(`⚠️ Local MongoDB not found (${error.message}). Starting MongoMemoryServer for local dev...`);
+    console.log(`⚠️ Local/Atlas MongoDB unavailable (${error.message}). Starting MongoMemoryServer for isolated execution...`);
     try {
       const { MongoMemoryServer } = require('mongodb-memory-server');
       mongoServer = await MongoMemoryServer.create();
@@ -36,8 +36,6 @@ const connectDB = async () => {
   }
 
   // Seeding logic:
-  // - Local MongoMemoryServer always auto-seeds for zero-setup execution.
-  // - Production/Atlas database seeds ONLY IF SEED_DEMO_DATA === 'true' is explicitly passed.
   try {
     const shouldSeed = isMemoryServer || process.env.SEED_DEMO_DATA === 'true';
     if (shouldSeed) {

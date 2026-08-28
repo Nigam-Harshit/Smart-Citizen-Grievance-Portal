@@ -26,8 +26,12 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'manager', 'officer', 'citizen'],
+    enum: ['admin', 'manager', 'officer', 'field_officer', 'citizen'],
     default: 'citizen'
+  },
+  scope: {
+    type: String,
+    default: 'All'
   },
   linkedCitizenId: {
     type: mongoose.Schema.Types.ObjectId,

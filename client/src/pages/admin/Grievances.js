@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Topbar from '../../components/Topbar';
 import API from '../../utils/api';
+import AuthContext from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 
 const MasterGrievances = () => {
+    const { user } = useContext(AuthContext);
     const [grievances, setGrievances] = useState([]);
     const [officers, setOfficers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -16,6 +18,9 @@ const MasterGrievances = () => {
     const [selectedGrievance, setSelectedGrievance] = useState(null);
     const [assignOfficerId, setAssignOfficerId] = useState('');
     const [showAssignModal, setShowAssignModal] = useState(false);
+
+    const isManager = user?.role === 'manager';
+    const userScope = user?.scope || 'All';
 
     const fetchGrievances = useCallback(async () => {
         try {
@@ -35,7 +40,6 @@ const MasterGrievances = () => {
 
     const fetchOfficers = useCallback(async () => {
         try {
-            await API.get('/api/citizens');
             const userRes = await API.get('/api/auth/officers').catch(() => ({ data: [] }));
             setOfficers(userRes.data || []);
         } catch (err) {
@@ -86,21 +90,34 @@ const MasterGrievances = () => {
         <div style={{ display: 'flex' }}>
             <Sidebar />
             <div className="main-content">
-                <Topbar title="Master Grievance Tracker" />
+                <Topbar title={isManager ? `Grievances Tracker (${userScope})` : "Master Grievance Tracker"} />
+
+                {isManager && userScope !== 'All' && (
+                    <div style={{ padding: '0.8rem 1.2rem', background: 'var(--accent-amber-dim)', border: '1px solid var(--accent-amber)', borderRadius: '10px', marginBottom: '1.2rem', fontSize: '0.85rem' }}>
+                        🔒 <strong>Manager Scope Active:</strong> Viewing complaints scoped to <strong>{userScope}</strong> category. Server enforces this scope boundary.
+                    </div>
+                )}
 
                 {/* Filters Panel */}
                 <div className="glass-panel" style={{ padding: '1.2rem 1.6rem', borderRadius: '14px', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Filters:
                     </div>
-                    <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ width: '180px' }}>
-                        <option value="">All Categories</option>
-                        <option value="Sanitation">Sanitation</option>
-                        <option value="Water Supply">Water Supply</option>
-                        <option value="Roads">Roads</option>
-                        <option value="Electricity">Electricity</option>
-                        <option value="Public Safety">Public Safety</option>
-                    </select>
+
+                    {!isManager || userScope === 'All' ? (
+                        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ width: '180px' }}>
+                            <option value="">All Categories</option>
+                            <option value="Sanitation">Sanitation</option>
+                            <option value="Water Supply">Water Supply</option>
+                            <option value="Roads">Roads & Traffic</option>
+                            <option value="Electricity">Electricity</option>
+                            <option value="Public Safety">Public Safety</option>
+                        </select>
+                    ) : (
+                        <select value={userScope} disabled style={{ width: '180px', opacity: 0.8 }}>
+                            <option value={userScope}>{userScope} (Scoped)</option>
+                        </select>
+                    )}
 
                     <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '160px' }}>
                         <option value="">All Statuses</option>
@@ -218,11 +235,8 @@ const MasterGrievances = () => {
                                         required
                                     >
                                         <option value="">-- Choose Field Officer --</option>
-                                        <option value="6a8fe29afbba5bb1ba579a65">Officer Rakesh Sharma (Water & Sanitation)</option>
-                                        <option value="6a8fe29afbba5bb1ba579a66">Officer Priya Verma (Roads & Infrastructure)</option>
-                                        <option value="6a8fe29afbba5bb1ba579a67">Officer Amit Patel (Electricity & Safety)</option>
                                         {officers.map(o => (
-                                            <option key={o._id} value={o._id}>{o.name} ({o.email})</option>
+                                            <option key={o._id} value={o._id}>{o.name} ({o.email}) {o.scope ? `[${o.scope}]` : ''}</option>
                                         ))}
                                     </select>
                                 </div>

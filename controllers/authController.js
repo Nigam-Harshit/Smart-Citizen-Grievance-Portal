@@ -9,6 +9,8 @@ const generateToken = (id) => {
     });
 };
 
+const { getCanonicalCitizen } = require('../utils/identityHelper');
+
 // Public registration - strictly locks role to 'citizen', requires name, email, password only
 const registerUser = async (req, res) => {
     try {
@@ -18,7 +20,8 @@ const registerUser = async (req, res) => {
             return res.status(400).json({ message: 'Please provide full name, email, and password' });
         }
 
-        const userExists = await User.findOne({ email });
+        const normEmail = email.toLowerCase().trim();
+        const userExists = await User.findOne({ email: normEmail });
         if (userExists) {
             return res.status(400).json({ message: 'A user with this email address already exists' });
         }
@@ -26,21 +29,20 @@ const registerUser = async (req, res) => {
         // Public registration is ALWAYS forced to 'citizen'
         const user = await User.create({
             name,
-            email,
+            email: normEmail,
             password,
             phone: phone || contact || '',
             role: 'citizen',
             scope: 'All'
         });
 
-        // Create linked Citizen profile (phone & address optional)
-        const citizen = await Citizen.create({
+        // Get or create canonical Citizen profile (links existing if present by email)
+        const citizen = await getCanonicalCitizen({
+            userId: user._id,
+            email: normEmail,
             name,
-            email,
-            contact: phone || contact || '',
-            address: address || '',
-            linkedUserId: user._id,
-            status: 'Active'
+            phone: phone || contact || '',
+            address: address || ''
         });
 
         user.linkedCitizenId = citizen._id;
@@ -285,6 +287,15 @@ const getStaffUsers = async (req, res) => {
     }
 };
 
+const getOfficers = async (req, res) => {
+    try {
+        const officers = await User.find({ role: { $in: ['officer', 'field_officer'] } }).select('name email role scope phone');
+        res.status(200).json(officers);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     createStaffUser,
@@ -293,5 +304,6 @@ module.exports = {
     updateProfile,
     forgotPassword,
     resetPassword,
-    getStaffUsers
+    getStaffUsers,
+    getOfficers
 };

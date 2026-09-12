@@ -40,6 +40,8 @@ const getCitizenById = async (req, res) => {
     }
 };
 
+const { getCanonicalCitizen } = require('../utils/identityHelper');
+
 const createCitizen = async (req, res) => {
     try {
         const { name, email, contact, address, status, assignedTo } = req.body;
@@ -48,19 +50,22 @@ const createCitizen = async (req, res) => {
             return res.status(400).json({ message: 'Please add all required fields (name, email, contact)' });
         }
 
-        const citizenExists = await Citizen.findOne({ email });
+        const normEmail = email.toLowerCase().trim();
+        const citizenExists = await Citizen.findOne({ email: normEmail });
         if (citizenExists) {
-            return res.status(400).json({ message: 'Citizen with this email already exists' });
+            return res.status(400).json({ message: 'Citizen with this email address already exists' });
         }
 
-        const citizen = await Citizen.create({
+        const citizen = await getCanonicalCitizen({
             name,
-            email,
-            contact,
-            address: address || '',
-            status: status || 'Active',
-            assignedTo: assignedTo || req.user._id
+            email: normEmail,
+            phone: contact,
+            address: address || ''
         });
+
+        if (status) citizen.status = status;
+        if (assignedTo) citizen.assignedTo = assignedTo;
+        await citizen.save();
 
         await logAudit(req.user._id, 'Create Citizen', `Created a new citizen record for ${name}.`);
         res.status(201).json(citizen);

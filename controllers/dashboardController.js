@@ -1,5 +1,6 @@
 const Citizen = require('../models/Citizen');
 const Grievance = require('../models/Grievance');
+const { getAllAssociatedIds } = require('../utils/identityHelper');
 
 const getDashboardStats = async (req, res) => {
     try {
@@ -199,13 +200,10 @@ const getDutyQueue = async (req, res) => {
             });
         } else {
             // Citizen Queue
-            let citizenDoc = await Citizen.findOne({ linkedUserId: req.user._id });
-            if (!citizenDoc && req.user.linkedCitizenId) {
-                citizenDoc = await Citizen.findById(req.user.linkedCitizenId);
-            }
-
-            const citizenId = citizenDoc ? citizenDoc._id : null;
-            const myGrievances = citizenId ? await Grievance.find({ citizenId }).sort({ createdAt: -1 }) : [];
+            const associatedIds = await getAllAssociatedIds(req.user._id);
+            const myGrievances = associatedIds.length > 0
+                ? await Grievance.find({ citizenId: { $in: associatedIds } }).sort({ createdAt: -1 })
+                : [];
 
             return res.status(200).json({
                 role: 'citizen',

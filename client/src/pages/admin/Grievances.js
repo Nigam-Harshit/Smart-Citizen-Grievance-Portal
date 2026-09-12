@@ -40,7 +40,7 @@ const MasterGrievances = () => {
 
     const fetchOfficers = useCallback(async () => {
         try {
-            const userRes = await API.get('/api/auth/officers').catch(() => ({ data: [] }));
+            const userRes = await API.get('/api/auth/officers').catch(() => API.get('/api/auth/staff')).catch(() => ({ data: [] }));
             setOfficers(userRes.data || []);
         } catch (err) {
             console.error('Error fetching officers:', err);
@@ -67,6 +67,8 @@ const MasterGrievances = () => {
                 assignedTo: assignOfficerId
             });
             setShowAssignModal(false);
+            setSelectedGrievance(null);
+            setAssignOfficerId('');
             fetchGrievances();
         } catch (err) {
             console.error('Error assigning officer:', err);

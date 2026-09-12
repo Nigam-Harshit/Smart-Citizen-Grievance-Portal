@@ -5,6 +5,7 @@ const GrievanceUpdate = require('../models/GrievanceUpdate');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 const { logAudit } = require('./auditController');
+const { getCanonicalCitizen, getAllAssociatedIds } = require('../utils/identityHelper');
 
 const getGrievances = async (req, res) => {
     try {
@@ -15,12 +16,9 @@ const getGrievances = async (req, res) => {
             const role = req.user.role;
             
             if (role === 'citizen') {
-                let citizenDoc = await Citizen.findOne({ linkedUserId: req.user._id });
-                if (!citizenDoc && req.user.linkedCitizenId) {
-                    citizenDoc = await Citizen.findById(req.user.linkedCitizenId);
-                }
-                if (citizenDoc) {
-                    query.citizenId = citizenDoc._id;
+                const associatedIds = await getAllAssociatedIds(req.user._id);
+                if (associatedIds.length > 0) {
+                    query.citizenId = { $in: associatedIds };
                 } else {
                     return res.status(200).json([]);
                 }
@@ -33,7 +31,14 @@ const getGrievances = async (req, res) => {
             }
         }
 
-        if (citizenId) query.citizenId = citizenId;
+        if (citizenId) {
+            const associatedIds = await getAllAssociatedIds(citizenId);
+            if (associatedIds.length > 0) {
+                query.citizenId = { $in: associatedIds };
+            } else {
+                query.citizenId = citizenId;
+            }
+        }
         if (status) query.status = status;
         if (priority) query.priority = priority;
 
@@ -82,8 +87,9 @@ const getGrievanceById = async (req, res) => {
         if (req.user) {
             const role = req.user.role;
             if (role === 'citizen') {
-                const citizenDoc = await Citizen.findOne({ linkedUserId: req.user._id });
-                if (!citizenDoc || String(grievance.citizenId?._id || grievance.citizenId) !== String(citizenDoc._id)) {
+                const associatedIds = await getAllAssociatedIds(req.user._id);
+                const grievanceCitizenIdStr = String(grievance.citizenId?._id || grievance.citizenId);
+                if (!associatedIds.includes(grievanceCitizenIdStr)) {
                     return res.status(403).json({ message: 'Access forbidden: You can only view your own submitted grievances' });
                 }
             } else if (role === 'officer' || role === 'field_officer') {
@@ -112,36 +118,27 @@ const createGrievance = async (req, res) => {
             return res.status(400).json({ message: 'Please provide title, description, category, and location' });
         }
 
-        // Auto resolve citizen profile if user is a logged-in citizen
+        let citizenDoc = null;
         if (req.user && req.user.role === 'citizen') {
-            let citizenDoc = await Citizen.findOne({ linkedUserId: req.user._id });
-            if (!citizenDoc && req.user.linkedCitizenId) {
-                citizenDoc = await Citizen.findById(req.user.linkedCitizenId);
-            }
-
-            if (!citizenDoc) {
-                citizenDoc = await Citizen.create({
-                    name: req.user.name,
-                    email: req.user.email,
-                    contact: req.user.phone || '',
-                    linkedUserId: req.user._id
-                });
-                req.user.linkedCitizenId = citizenDoc._id;
-                await req.user.save();
-            }
-
-            citizenId = citizenDoc._id;
-            citizenName = citizenDoc.name;
+            citizenDoc = await getCanonicalCitizen({
+                userId: req.user._id,
+                email: req.user.email,
+                name: req.user.name,
+                phone: req.user.phone
+            });
+        } else if (citizenId) {
+            citizenDoc = await getCanonicalCitizen({
+                citizenId,
+                name: citizenName
+            });
         }
 
-        if (!citizenId) {
+        if (!citizenDoc) {
             return res.status(400).json({ message: 'Citizen reference is required' });
         }
 
-        const citizenDoc = await Citizen.findById(citizenId);
-        if (citizenDoc) {
-            citizenName = citizenDoc.name;
-        }
+        citizenId = citizenDoc._id;
+        citizenName = citizenDoc.name;
 
         // Calculate SLA deadline based on priority
         const now = new Date();
@@ -179,10 +176,8 @@ const createGrievance = async (req, res) => {
         });
 
         // Update citizen activity
-        if (citizenDoc) {
-            citizenDoc.lastActivity = Date.now();
-            await citizenDoc.save();
-        }
+        citizenDoc.lastActivity = Date.now();
+        await citizenDoc.save();
 
         // Create initial update timeline entry
         await GrievanceUpdate.create({
@@ -193,7 +188,7 @@ const createGrievance = async (req, res) => {
             statusChange: 'Open'
         });
 
-        await logAudit(req.user._id, 'Create Grievance', `Created grievance "${title}" for citizen ${citizenName}.`);
+        await logAudit(req.user ? req.user._id : citizenId, 'Create Grievance', `Created grievance "${title}" for citizen ${citizenName}.`);
 
         res.status(201).json(grievance);
     } catch (error) {
@@ -231,9 +226,14 @@ const updateGrievance = async (req, res) => {
         const oldStatus = grievance.status;
         const updateData = { ...req.body };
 
+        let assignedOfficerObj = null;
         if (updateData.assignedTo && updateData.assignedTo !== String(grievance.assignedTo)) {
             const officer = await User.findById(updateData.assignedTo);
-            if (officer) updateData.officerName = officer.name;
+            if (!officer || !['officer', 'field_officer'].includes(officer.role)) {
+                return res.status(400).json({ message: 'Invalid assignment: Selected user is not an active Field Officer' });
+            }
+            updateData.officerName = officer.name;
+            assignedOfficerObj = officer;
         }
 
         if (updateData.status === 'Resolved' && oldStatus !== 'Resolved') {
@@ -246,6 +246,18 @@ const updateGrievance = async (req, res) => {
             { new: true, runValidators: true }
         ).populate('citizenId', 'name email contact address')
          .populate('assignedTo', 'name email role scope');
+
+        if (assignedOfficerObj) {
+            await GrievanceUpdate.create({
+                grievanceId: grievance._id,
+                userId: req.user._id,
+                type: 'Officer Field Note',
+                notes: `Assigned to field officer ${assignedOfficerObj.name}.`,
+                statusChange: updatedGrievance.status
+            });
+
+            await logAudit(req.user._id, 'Assign Officer', `Assigned grievance "${grievance.title}" to officer ${assignedOfficerObj.name}.`);
+        }
 
         if (updateData.status && updateData.status !== oldStatus) {
             await GrievanceUpdate.create({

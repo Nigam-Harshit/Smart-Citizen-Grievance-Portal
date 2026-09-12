@@ -35,16 +35,18 @@ const connectDB = async () => {
     }
   }
 
-  // Seeding logic:
+  // Seeding logic & identity consolidation:
   try {
+    const { consolidateCitizenIdentities } = require('../utils/identityHelper');
     const shouldSeed = isMemoryServer || process.env.SEED_DEMO_DATA === 'true';
     if (shouldSeed) {
       console.log('🌱 Seeding demo data into active database...');
       const seedData = require('../seed');
       await seedData(true); // pass true to skip re-connecting
     }
+    await consolidateCitizenIdentities();
   } catch (seedErr) {
-    console.error('⚠️ Seed execution warning:', seedErr.message);
+    console.error('⚠️ Seed/Migration execution warning:', seedErr.message);
   }
 };
 

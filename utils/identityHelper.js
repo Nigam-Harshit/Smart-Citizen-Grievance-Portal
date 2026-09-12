@@ -205,8 +205,92 @@ const consolidateCitizenIdentities = async () => {
     }
 };
 
+/**
+ * Ensures the simplified standard staff roster exists and is up to date.
+ * Non-destructive: preserves all existing grievances, citizens, users, and audit records.
+ */
+const syncSimpleStaffRoster = async () => {
+    try {
+        const staff = [
+            {
+                name: 'System Administrator',
+                email: 'admin@grievance.gov.in',
+                role: 'admin',
+                scope: 'All',
+                phone: '+91 98765 00001'
+            },
+            {
+                name: 'Civic Manager',
+                email: 'manager@grievance.gov.in',
+                role: 'manager',
+                scope: 'All',
+                phone: '+91 98765 00002'
+            },
+            {
+                name: 'Officer Rakesh Sharma',
+                email: 'officer.sharma@grievance.gov.in',
+                role: 'officer',
+                scope: 'Water Supply',
+                phone: '+91 98765 11111'
+            },
+            {
+                name: 'Officer Sunita Verma',
+                email: 'officer.verma@grievance.gov.in',
+                role: 'officer',
+                scope: 'Roads & Traffic',
+                phone: '+91 98765 22222'
+            },
+            {
+                name: 'Officer Amit Kumar',
+                email: 'officer.kumar@grievance.gov.in',
+                role: 'officer',
+                scope: 'Sanitation',
+                phone: '+91 98765 33333'
+            },
+            {
+                name: 'Officer Neha Gupta',
+                email: 'officer.gupta@grievance.gov.in',
+                role: 'officer',
+                scope: 'All',
+                phone: '+91 98765 44444'
+            }
+        ];
+
+        for (const s of staff) {
+            const existing = await User.findOne({ email: s.email });
+            if (existing) {
+                let changed = false;
+                if (existing.scope !== s.scope) {
+                    existing.scope = s.scope;
+                    changed = true;
+                }
+                if (existing.name !== s.name) {
+                    existing.name = s.name;
+                    changed = true;
+                }
+                if (existing.role !== s.role) {
+                    existing.role = s.role;
+                    changed = true;
+                }
+                if (changed) {
+                    await existing.save();
+                }
+            } else {
+                await User.create({
+                    ...s,
+                    password: 'Password123!'
+                });
+            }
+        }
+    } catch (err) {
+        console.error('Error syncing staff roster:', err.message);
+    }
+};
+
 module.exports = {
     getCanonicalCitizen,
     getAllAssociatedIds,
     consolidateCitizenIdentities
+    consolidateCitizenIdentities,
+    syncSimpleStaffRoster
 };

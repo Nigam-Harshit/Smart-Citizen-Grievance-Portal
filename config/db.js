@@ -36,8 +36,10 @@ const connectDB = async () => {
   }
 
   // Seeding logic & identity consolidation:
+  // Seeding logic & identity consolidation & staff roster sync:
   try {
     const { consolidateCitizenIdentities } = require('../utils/identityHelper');
+    const { consolidateCitizenIdentities, syncSimpleStaffRoster } = require('../utils/identityHelper');
     const shouldSeed = isMemoryServer || process.env.SEED_DEMO_DATA === 'true';
     if (shouldSeed) {
       console.log('🌱 Seeding demo data into active database...');
@@ -45,6 +47,7 @@ const connectDB = async () => {
       await seedData(true); // pass true to skip re-connecting
     }
     await consolidateCitizenIdentities();
+    await syncSimpleStaffRoster();
   } catch (seedErr) {
     console.error('⚠️ Seed/Migration execution warning:', seedErr.message);
   }

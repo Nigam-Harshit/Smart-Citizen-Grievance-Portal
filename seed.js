@@ -40,10 +40,12 @@ const seedData = async (skipConnect = false) => {
 
         const managerUser = await User.create({
             name: 'Civic Manager - Water & Sanitation',
+            name: 'Civic Manager',
             email: 'manager@grievance.gov.in',
             password: 'Password123!',
             role: 'manager',
             scope: 'Water Supply',
+            scope: 'All',
             phone: '+91 98765 00002'
         });
 
@@ -63,6 +65,24 @@ const seedData = async (skipConnect = false) => {
             role: 'officer',
             scope: 'Roads & Traffic',
             phone: '+91 98765 22222'
+        });
+
+        const officer3 = await User.create({
+            name: 'Officer Amit Kumar',
+            email: 'officer.kumar@grievance.gov.in',
+            password: 'Password123!',
+            role: 'officer',
+            scope: 'Sanitation',
+            phone: '+91 98765 33333'
+        });
+
+        const officer4 = await User.create({
+            name: 'Officer Neha Gupta',
+            email: 'officer.gupta@grievance.gov.in',
+            password: 'Password123!',
+            role: 'officer',
+            scope: 'All',
+            phone: '+91 98765 44444'
         });
 
         const citizenUser = await User.create({
@@ -194,6 +214,8 @@ const seedData = async (skipConnect = false) => {
             status: 'Open',
             assignedTo: officer1._id,
             officerName: officer1.name,
+            assignedTo: officer3._id,
+            officerName: officer3.name,
             deadline: overdueDeadline,
             createdAt: past10Days
         });

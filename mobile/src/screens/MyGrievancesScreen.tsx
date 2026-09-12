@@ -4,14 +4,17 @@ import { StatusBar } from 'expo-status-bar';
 import { fetchMyGrievances } from '../services/grievanceService';
 
 interface MyGrievancesScreenProps {
+  user?: any;
   onNavigate: (screen: any, params?: any) => void;
 }
 
-export const MyGrievancesScreen: React.FC<MyGrievancesScreenProps> = ({ onNavigate }) => {
+export const MyGrievancesScreen: React.FC<MyGrievancesScreenProps> = ({ user, onNavigate }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [grievances, setGrievances] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const isOfficer = user?.role === 'officer' || user?.role === 'field_officer';
 
   useEffect(() => {
     loadGrievanceList();
@@ -43,10 +46,22 @@ export const MyGrievancesScreen: React.FC<MyGrievancesScreenProps> = ({ onNaviga
         <TouchableOpacity onPress={() => onNavigate('Home')}>
           <Text style={styles.backBtn}>← Home</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Grievances</Text>
-        <TouchableOpacity onPress={() => onNavigate('SubmitGrievance')}>
-          <Text style={styles.addBtn}>+ New</Text>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {user?.role === 'admin'
+            ? 'Master Grievance Registry'
+            : user?.role === 'manager'
+            ? 'Department Grievances'
+            : isOfficer
+            ? 'Assigned Tasks'
+            : 'My Grievances'}
+        </Text>
+        {(!user?.role || user?.role === 'citizen') ? (
+          <TouchableOpacity onPress={() => onNavigate('SubmitGrievance')}>
+            <Text style={styles.addBtn}>+ New</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       {/* Filter Tabs */}

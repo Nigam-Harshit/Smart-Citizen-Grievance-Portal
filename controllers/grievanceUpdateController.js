@@ -47,6 +47,8 @@ const createUpdate = async (req, res) => {
 
         await logAudit(req.user._id, 'Add Grievance Update', `Added ${type} update to grievance "${grievance.title}".`);
 
+        await updateEntry.populate('userId', 'name role email');
+
         res.status(201).json(updateEntry);
     } catch (error) {
         res.status(500).json({ message: error.message });

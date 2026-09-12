@@ -33,14 +33,25 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only handle GET requests
   if (event.request.method !== 'GET') return;
   
+
+  const url = new URL(event.request.url);
+
+  // Bypass service worker entirely for API requests (/api/*)
+  // Ensures API calls receive genuine HTTP errors/network failures rather than index.html fallback
+  if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
       return fetch(event.request).catch(() => {
+        // Fallback to index.html for SPA frontend routes when offline or network fails
         return caches.match('/index.html');
       });
     })

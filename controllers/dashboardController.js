@@ -139,9 +139,15 @@ const getDutyQueue = async (req, res) => {
             .populate('citizenId', 'name email contact')
             .sort({ deadline: 1 });
 
+            const officerResolvedCount = await Grievance.countDocuments({
+                assignedTo: req.user._id,
+                status: 'Resolved'
+            });
+
             return res.status(200).json({
                 role: 'officer',
                 myQueueCount: myQueue.length,
+                resolvedCount: officerResolvedCount,
                 myQueue
             });
         } else if (role === 'manager') {
@@ -165,13 +171,19 @@ const getDutyQueue = async (req, res) => {
             .populate('assignedTo', 'name email role')
             .sort({ deadline: 1 });
 
+            const managerResolvedCount = await Grievance.countDocuments({
+                ...scopeFilter,
+                status: 'Resolved'
+            });
+
             return res.status(200).json({
                 role: 'manager',
                 scope,
                 unassignedCount: unassignedInScope.length,
                 unassignedInScope,
                 breachingCount: breachingOrOverdueInScope.length,
-                breachingOrOverdueInScope
+                breachingOrOverdueInScope,
+                resolvedCount: managerResolvedCount
             });
         } else if (role === 'admin') {
             // Admin System-Wide Duty Queue
@@ -191,6 +203,7 @@ const getDutyQueue = async (req, res) => {
                 role: 'admin',
                 breachedCount: systemBreached.length,
                 systemBreached,
+                resolvedCount: resolvedCount,
                 healthSummary: {
                     open: openCount,
                     inProgress: inProgressCount,
@@ -205,9 +218,14 @@ const getDutyQueue = async (req, res) => {
                 ? await Grievance.find({ citizenId: { $in: associatedIds } }).sort({ createdAt: -1 })
                 : [];
 
+            const citizenResolvedCount = associatedIds.length > 0
+                ? await Grievance.countDocuments({ citizenId: { $in: associatedIds }, status: 'Resolved' })
+                : 0;
+
             return res.status(200).json({
                 role: 'citizen',
                 myCount: myGrievances.length,
+                resolvedCount: citizenResolvedCount,
                 myGrievances
             });
         }

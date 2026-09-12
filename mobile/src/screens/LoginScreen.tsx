@@ -37,11 +37,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigate, onLoginSuc
     }
   };
 
-  const handleQuickDemo = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('Password123!');
-  };
-
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
       <StatusBar style="light" />
@@ -49,14 +44,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigate, onLoginSuc
         <View style={styles.header}>
           <Text style={styles.icon}>🏛️</Text>
           <Text style={styles.title}>Sign In to Portal</Text>
-          <Text style={styles.subtitle}>Enter registered citizen credentials</Text>
+          <Text style={styles.subtitle}>Enter registered credentials</Text>
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Email Address</Text>
           <TextInput
             style={styles.input}
-            placeholder="rajesh@example.com"
+            placeholder="user@example.com"
             placeholderTextColor="#64748B"
             value={email}
             onChangeText={setEmail}
@@ -84,22 +79,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigate, onLoginSuc
         >
           <Text style={styles.primaryBtnText}>{loading ? 'Signing In...' : '🔑 Sign In'}</Text>
         </TouchableOpacity>
-
-        {/* Demo Quick Fill Buttons */}
-        <View style={styles.demoSection}>
-          <Text style={styles.demoTitle}>Quick Demo Sign In:</Text>
-          <View style={styles.demoRow}>
-            <TouchableOpacity style={styles.demoChip} onPress={() => handleQuickDemo('citizen.rajesh@gmail.com')}>
-              <Text style={styles.demoChipText}>🏡 Citizen</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.demoChip} onPress={() => handleQuickDemo('officer.sharma@grievance.gov.in')}>
-              <Text style={styles.demoChipText}>👮 Officer</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.demoChip} onPress={() => handleQuickDemo('manager@grievance.gov.in')}>
-              <Text style={styles.demoChipText}>📊 Manager</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>New Citizen? </Text>
@@ -182,38 +161,6 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontWeight: 'bold',
     fontSize: 16,
-  },
-  demoSection: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(203, 213, 225, 0.1)',
-  },
-  demoTitle: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  demoRow: {
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'space-between',
-  },
-  demoChip: {
-    flex: 1,
-    backgroundColor: 'rgba(201, 150, 44, 0.12)',
-    borderColor: '#C9962C',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  demoChipText: {
-    color: '#C9962C',
-    fontSize: 11,
-    fontWeight: 'bold',
   },
   footer: {
     flexDirection: 'row',

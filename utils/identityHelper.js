@@ -290,7 +290,6 @@ const syncSimpleStaffRoster = async () => {
 module.exports = {
     getCanonicalCitizen,
     getAllAssociatedIds,
-    consolidateCitizenIdentities
     consolidateCitizenIdentities,
     syncSimpleStaffRoster
 };

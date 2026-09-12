@@ -9,9 +9,12 @@ import { SubmitGrievanceScreen } from '../screens/SubmitGrievanceScreen';
 import { MyGrievancesScreen } from '../screens/MyGrievancesScreen';
 import { GrievanceDetailScreen } from '../screens/GrievanceDetailScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { StaffDirectoryScreen } from '../screens/StaffDirectoryScreen';
+import { AuditLogsScreen } from '../screens/AuditLogsScreen';
 
 export const AppNavigator: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<RootScreen>('Splash');
+  const [previousScreen, setPreviousScreen] = useState<RootScreen>('Home');
   const [selectedGrievanceId, setSelectedGrievanceId] = useState<string | undefined>(undefined);
   const [user, setUser] = useState<any>(null);
 
@@ -19,6 +22,7 @@ export const AppNavigator: React.FC = () => {
     if (params?.id) {
       setSelectedGrievanceId(params.id);
     }
+    setPreviousScreen(currentScreen);
     setCurrentScreen(screen);
   };
 
@@ -74,14 +78,17 @@ export const AppNavigator: React.FC = () => {
       case 'MyGrievances':
         return (
           <MyGrievancesScreen
+            user={user}
             onNavigate={handleNavigate}
           />
         );
       case 'GrievanceDetail':
         return (
           <GrievanceDetailScreen
+            user={user}
             onNavigate={handleNavigate}
             grievanceId={selectedGrievanceId}
+            fromScreen={previousScreen}
           />
         );
       case 'Profile':
@@ -90,6 +97,20 @@ export const AppNavigator: React.FC = () => {
             user={user}
             onNavigate={handleNavigate}
             onLogout={handleLogout}
+          />
+        );
+      case 'StaffDirectory':
+        return (
+          <StaffDirectoryScreen
+            user={user}
+            onNavigate={handleNavigate}
+          />
+        );
+      case 'AuditLogs':
+        return (
+          <AuditLogsScreen
+            user={user}
+            onNavigate={handleNavigate}
           />
         );
       default:

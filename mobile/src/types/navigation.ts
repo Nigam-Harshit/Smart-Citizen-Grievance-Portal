@@ -6,7 +6,9 @@ export type RootScreen =
   | 'SubmitGrievance'
   | 'MyGrievances'
   | 'GrievanceDetail'
-  | 'Profile';
+  | 'Profile'
+  | 'StaffDirectory'
+  | 'AuditLogs';
 
 export interface GrievanceItem {
   id: string;

@@ -32,9 +32,28 @@ export const fetchTimelineUpdates = async (grievanceId: string) => {
   return await requestAPI(`/api/grievance-updates/${grievanceId}`, 'GET');
 };
 
-export const postTimelineUpdate = async (grievanceId: string, notes: string) => {
+export const postTimelineUpdate = async (
+  grievanceId: string,
+  notes: string,
+  type: 'Citizen Response' | 'Officer Field Note' | 'Internal Note' = 'Citizen Response'
+) => {
   return await requestAPI(`/api/grievance-updates/${grievanceId}`, 'POST', {
-    type: 'Citizen Response',
+    type,
     notes,
   });
+};
+
+export const updateGrievanceStatus = async (
+  id: string,
+  status: 'In Progress' | 'Resolved'
+) => {
+  return await requestAPI(`/api/grievances/${id}`, 'PUT', { status });
+};
+
+export const fetchOfficers = async () => {
+  return await requestAPI('/api/auth/officers', 'GET');
+};
+
+export const assignGrievanceOfficer = async (id: string, assignedTo: string) => {
+  return await requestAPI(`/api/grievances/${id}`, 'PUT', { assignedTo });
 };

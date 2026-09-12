@@ -18,7 +18,7 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
   const [phone, setPhone] = useState(user?.phone || '');
   const [loading, setLoading] = useState(false);
 
-  const categories = ['Sanitation', 'Water Supply', 'Roads & Traffic', 'Electricity', 'Public Safety'];
+  const categories = ['Sanitation', 'Water Supply', 'Roads & Traffic', 'Electricity', 'Public Safety', 'Other'];
   const priorities = ['Low', 'Medium', 'High', 'Critical'];
 
   const handleSubmit = async () => {
@@ -27,7 +27,7 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
       return;
     }
 
-    if (!user?.phone && !phone.trim()) {
+    if (!phone.trim()) {
       Alert.alert('Contact Phone Required', 'Please enter your contact phone number for field officer dispatch.');
       return;
     }
@@ -61,7 +61,7 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
     }
   };
 
-  const isPhoneMissing = !user?.phone && !phone;
+  const needsProfilePhone = !user?.phone;
 
   return (
     <View style={styles.container}>
@@ -77,27 +77,25 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {isPhoneMissing && (
+        {needsProfilePhone && (
           <View style={styles.phoneBanner}>
             <Text style={styles.phoneBannerText}>
-              📌 Contact Phone Required: Please enter your phone number below so field officers can contact you during site inspection.
+              📌 Contact Phone Required: Please provide your contact phone number below so field officers can reach you for site inspection.
             </Text>
           </View>
         )}
 
-        {isPhoneMissing && (
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Contact Phone Number *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="+91 98100 12345"
-              placeholderTextColor="#64748B"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-            />
-          </View>
-        )}
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Contact Phone Number *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="+91 98100 12345"
+            placeholderTextColor="#64748B"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
+        </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Grievance Title *</Text>

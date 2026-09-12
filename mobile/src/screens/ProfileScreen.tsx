@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { updateProfileInfo, logoutCitizen } from '../services/authService';
+import { getRoleTheme } from '../theme/roleTheme';
 
 interface ProfileScreenProps {
   user: any;
@@ -14,6 +15,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, 
   const [phone, setPhone] = useState(user?.phone || '');
   const [address, setAddress] = useState(user?.address || '');
   const [loading, setLoading] = useState(false);
+
+  const role = user?.role || 'citizen';
+  const roleTheme = getRoleTheme(role);
+  const isAdmin = role === 'admin';
+  const isManager = role === 'manager';
 
   const handleSaveProfile = async () => {
     if (!name.trim()) {
@@ -64,16 +70,54 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onNavigate, 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* User Card */}
         <View style={styles.userCard}>
-          <View style={styles.avatarCircle}>
+          <View style={[styles.avatarCircle, { backgroundColor: roleTheme.primary }]}>
             <Text style={styles.avatarText}>{name ? name.charAt(0).toUpperCase() : 'U'}</Text>
           </View>
-          <Text style={styles.userName}>{name || 'Citizen'}</Text>
-          <Text style={styles.userEmail}>{user?.email || 'citizen@example.com'}</Text>
+          <Text style={styles.userName}>{name || roleTheme.roleLabel}</Text>
+          <Text style={styles.userEmail}>{user?.email || 'user@grievance.gov.in'}</Text>
 
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>🛡️ Role: {(user?.role || 'Citizen').toUpperCase()}</Text>
+          <View
+            style={[
+              styles.roleBadge,
+              { backgroundColor: roleTheme.badgeBg, borderColor: roleTheme.badgeBorder },
+            ]}
+          >
+            <Text style={[styles.roleText, { color: roleTheme.badgeText }]}>
+              {roleTheme.icon} {roleTheme.roleLabel}
+            </Text>
           </View>
+
+          {user?.scope && (
+            <Text style={styles.scopeText}>
+              Department Scope: <Text style={{ color: '#F8FAFC', fontWeight: 'bold' }}>{user.scope}</Text>
+            </Text>
+          )}
         </View>
+
+        {/* Administrative Navigation Card for Admin & Manager */}
+        {(isAdmin || isManager) && (
+          <View style={[styles.card, { borderColor: roleTheme.badgeBorder, borderWidth: 1.5 }]}>
+            <Text style={[styles.sectionHeader, { color: roleTheme.secondary }]}>
+              {isAdmin ? '👑 Administrator Controls' : '📊 Manager Controls'}
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.adminActionBtn, { backgroundColor: roleTheme.primary }]}
+              onPress={() => onNavigate('StaffDirectory')}
+            >
+              <Text style={styles.adminActionBtnText}>👥 Staff & Officer Directory</Text>
+            </TouchableOpacity>
+
+            {isAdmin && (
+              <TouchableOpacity
+                style={[styles.adminActionBtn, { backgroundColor: '#1E293B', borderWidth: 1, borderColor: roleTheme.secondary, marginTop: 10 }]}
+                onPress={() => onNavigate('AuditLogs')}
+              >
+                <Text style={[styles.adminActionBtnText, { color: roleTheme.secondary }]}>📜 System Audit Trail Logs</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Profile Settings Form */}
         <View style={styles.card}>
@@ -273,6 +317,23 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  scopeText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 8,
+  },
+  adminActionBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  adminActionBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   logoutBtn: {
     backgroundColor: 'rgba(192, 67, 59, 0.15)',

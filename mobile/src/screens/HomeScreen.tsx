@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { fetchDutyQueue } from '../services/grievanceService';
+import { getRoleTheme } from '../theme/roleTheme';
 
 interface HomeScreenProps {
   user: any;
@@ -13,8 +14,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
   const [grievances, setGrievances] = useState<any[]>([]);
   const [activeCount, setActiveCount] = useState<number>(0);
   const [resolvedCount, setResolvedCount] = useState<number>(0);
+  const [extraCount, setExtraCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const role = user?.role || 'citizen';
+  const isOfficer = role === 'officer' || role === 'field_officer';
+  const isManager = role === 'manager';
+  const isAdmin = role === 'admin';
+  const isCitizen = !isOfficer && !isManager && !isAdmin;
+  const theme = getRoleTheme(role);
 
   useEffect(() => {
     loadDashboardData();
@@ -26,10 +35,29 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
     try {
       const res = await fetchDutyQueue();
       if (res.data) {
-        const myGrievances = res.data.myGrievances || [];
-        setGrievances(myGrievances);
-        setActiveCount(res.data.myCount || myGrievances.length);
-        setResolvedCount(res.data.resolvedCount || 0);
+        const userRole = user?.role || res.data.role || 'citizen';
+        let queue: any[] = [];
+        let active = 0;
+
+        if (userRole === 'admin') {
+          queue = res.data.systemBreached || [];
+          active = (res.data.healthSummary?.open || 0) + (res.data.healthSummary?.inProgress || 0);
+          setExtraCount(res.data.breachedCount || queue.length);
+        } else if (userRole === 'officer' || userRole === 'field_officer') {
+          queue = res.data.myQueue || [];
+          active = res.data.myQueueCount ?? queue.length;
+        } else if (userRole === 'manager') {
+          queue = res.data.unassignedInScope || [];
+          active = res.data.unassignedCount ?? queue.length;
+          setExtraCount(res.data.breachingCount || 0);
+        } else {
+          queue = res.data.myGrievances || [];
+          active = res.data.myCount ?? queue.length;
+        }
+
+        setGrievances(queue);
+        setActiveCount(active);
+        setResolvedCount(res.data.resolvedCount ?? res.data.healthSummary?.resolved ?? 0);
       } else if (res.error) {
         setErrorMsg(res.error);
       }
@@ -46,60 +74,144 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
 
       {/* App Top Bar */}
       <View style={styles.topBar}>
-        <View>
-          <Text style={styles.appTitle}>🏛️ Smart Citizen</Text>
-          <Text style={styles.welcomeText}>Hello, {user?.name || 'Citizen'}</Text>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[styles.appTitle, { color: theme.primary }]}>🏛️ Smart Citizen</Text>
+            <View style={[styles.roleBadgeHeader, { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder }]}>
+              <Text style={[styles.roleBadgeHeaderText, { color: theme.badgeText }]}>
+                {theme.icon} {theme.roleLabel}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.welcomeText}>Hello, {user?.name || theme.roleLabel}</Text>
         </View>
-        <TouchableOpacity style={styles.avatarBtn} onPress={() => onNavigate('Profile')}>
+        <TouchableOpacity
+          style={[styles.avatarBtn, { backgroundColor: theme.primary }]}
+          onPress={() => onNavigate('Profile')}
+        >
           <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Quick Action Hero Banner */}
-        <View style={styles.heroCard}>
-          <Text style={styles.heroTitle}>Lodge a Public Grievance</Text>
-          <Text style={styles.heroSub}>Report sanitation, water, road, or safety issues directly to zonal municipal officers.</Text>
-          <TouchableOpacity style={styles.heroBtn} onPress={() => onNavigate('SubmitGrievance')}>
-            <Text style={styles.heroBtnText}>➕ Lodge New Grievance</Text>
-          </TouchableOpacity>
-        </View>
+        {isAdmin ? (
+          <View style={[styles.heroCard, { borderLeftColor: theme.primary, borderColor: theme.badgeBorder, backgroundColor: theme.badgeBg }]}>
+            <Text style={styles.heroTitle}>System Administration Portal</Text>
+            <Text style={styles.heroSub}>
+              City-wide municipal grievance metrics, SLA breach monitoring, staff directory & audit controls.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <TouchableOpacity
+                style={[styles.heroActionBtn, { backgroundColor: theme.primary }]}
+                onPress={() => onNavigate('StaffDirectory')}
+              >
+                <Text style={styles.heroActionBtnText}>👥 Staff Directory</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.heroActionBtn, { backgroundColor: '#1E293B', borderWidth: 1, borderColor: theme.secondary }]}
+                onPress={() => onNavigate('AuditLogs')}
+              >
+                <Text style={[styles.heroActionBtnText, { color: theme.secondary }]}>📜 Audit Logs</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : isManager ? (
+          <View style={[styles.heroCard, { borderLeftColor: theme.primary, borderColor: theme.badgeBorder, backgroundColor: theme.badgeBg }]}>
+            <Text style={styles.heroTitle}>Civic Manager Oversight</Text>
+            <Text style={styles.heroSub}>
+              Department Scope: <Text style={{ color: '#F8FAFC', fontWeight: 'bold' }}>{user?.scope || 'All Categories'}</Text>. Review unassigned tickets, assign field officers, and monitor SLA breaches.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <TouchableOpacity
+                style={[styles.heroActionBtn, { backgroundColor: theme.primary }]}
+                onPress={() => onNavigate('StaffDirectory')}
+              >
+                <Text style={styles.heroActionBtnText}>👥 Staff Directory</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.heroActionBtn, { backgroundColor: '#1E293B', borderWidth: 1, borderColor: theme.secondary }]}
+                onPress={() => onNavigate('MyGrievances')}
+              >
+                <Text style={[styles.heroActionBtnText, { color: theme.secondary }]}>📋 Scope Tickets</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : isOfficer ? (
+          <View style={[styles.heroCard, { borderLeftColor: theme.primary, borderColor: theme.badgeBorder, backgroundColor: theme.badgeBg }]}>
+            <Text style={styles.heroTitle}>Field Officer Duty Queue</Text>
+            <Text style={styles.heroSub}>
+              Inspect assigned complaints, perform on-site verifications, and submit official resolution reports.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+              <View style={[styles.prioBadge, { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder }]}>
+                <Text style={[styles.prioText, { color: theme.secondary }]}>
+                  👮 Field Tasks Assigned: {activeCount}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.heroCard}>
+            <Text style={styles.heroTitle}>Lodge a Public Grievance</Text>
+            <Text style={styles.heroSub}>Report sanitation, water, road, or safety issues directly to zonal municipal officers.</Text>
+            <TouchableOpacity style={styles.heroBtn} onPress={() => onNavigate('SubmitGrievance')}>
+              <Text style={styles.heroBtnText}>➕ Lodge New Grievance</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
-          <View style={styles.statTile}>
-            <Text style={styles.statNumber}>{activeCount}</Text>
-            <Text style={styles.statLabel}>Active Complaints</Text>
+          <View style={[styles.statTile, { borderLeftColor: theme.primary }]}>
+            <Text style={[styles.statNumber, { color: theme.secondary }]}>{activeCount}</Text>
+            <Text style={styles.statLabel}>
+              {isAdmin ? 'Active System' : isManager ? 'Unassigned in Scope' : isOfficer ? 'Assigned Tasks' : 'Active Complaints'}
+            </Text>
           </View>
-          <View style={[styles.statTile, { borderLeftColor: '#4F9D6E' }]}>
-            <Text style={[styles.statNumber, { color: '#4F9D6E' }]}>{resolvedCount}</Text>
+          <View style={[styles.statTile, { borderLeftColor: '#10B981' }]}>
+            <Text style={[styles.statNumber, { color: '#34D399' }]}>{resolvedCount}</Text>
             <Text style={styles.statLabel}>Resolved Tickets</Text>
           </View>
+          {(isAdmin || isManager) && (
+            <View style={[styles.statTile, { borderLeftColor: '#EF4444' }]}>
+              <Text style={[styles.statNumber, { color: '#F87171' }]}>{extraCount}</Text>
+              <Text style={styles.statLabel}>{isAdmin ? 'SLA Breached' : 'Breaching Scope'}</Text>
+            </View>
+          )}
         </View>
 
         {/* Duty Queue Widget Header */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>📋 My Active Duty Queue</Text>
+          <Text style={styles.sectionTitle}>
+            {isAdmin
+              ? '🚨 Breached SLA Tickets'
+              : isManager
+              ? '📋 Unassigned Tickets in Scope'
+              : isOfficer
+              ? '🚨 My Assigned Field Tasks'
+              : '📋 My Active Complaints'}
+          </Text>
           <TouchableOpacity onPress={() => onNavigate('MyGrievances')}>
-            <Text style={styles.seeAllText}>View All →</Text>
+            <Text style={[styles.seeAllText, { color: theme.secondary }]}>View All →</Text>
           </TouchableOpacity>
         </View>
 
         {loading ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color="#C9962C" />
+            <ActivityIndicator size="small" color={theme.primary} />
             <Text style={styles.loadingText}>Fetching Live Grievance Queue...</Text>
           </View>
         ) : errorMsg ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>⚠️ {errorMsg}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={loadDashboardData}>
+            <TouchableOpacity style={[styles.retryBtn, { backgroundColor: theme.primary }]} onPress={loadDashboardData}>
               <Text style={styles.retryBtnText}>Retry Connection</Text>
             </TouchableOpacity>
           </View>
         ) : grievances.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>🎉 No active unresolved tickets in your queue!</Text>
+            <Text style={styles.emptyText}>🎉 No active unresolved tickets in this queue!</Text>
           </View>
         ) : (
           grievances.map((item) => {
@@ -137,13 +249,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
           <Text style={styles.navIcon}>🏠</Text>
           <Text style={[styles.navLabel, styles.activeNavLabel]}>Home</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('SubmitGrievance')}>
-          <Text style={styles.navIcon}>➕</Text>
-          <Text style={styles.navLabel}>Lodge</Text>
-        </TouchableOpacity>
+        {isCitizen && (
+          <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('SubmitGrievance')}>
+            <Text style={styles.navIcon}>➕</Text>
+            <Text style={styles.navLabel}>Lodge</Text>
+          </TouchableOpacity>
+        )}
+        {(isManager || isAdmin) && (
+          <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('StaffDirectory')}>
+            <Text style={styles.navIcon}>👥</Text>
+            <Text style={styles.navLabel}>Staff</Text>
+          </TouchableOpacity>
+        )}
+        {isAdmin && (
+          <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('AuditLogs')}>
+            <Text style={styles.navIcon}>📜</Text>
+            <Text style={styles.navLabel}>Audit</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('MyGrievances')}>
           <Text style={styles.navIcon}>📋</Text>
-          <Text style={styles.navLabel}>Tickets</Text>
+          <Text style={styles.navLabel}>{isOfficer ? 'My Tasks' : 'Tickets'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('Profile')}>
           <Text style={styles.navIcon}>👤</Text>
@@ -176,6 +302,16 @@ const styles = StyleSheet.create({
     color: '#C9962C',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  roleBadgeHeader: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  roleBadgeHeaderText: {
+    fontSize: 9,
+    fontWeight: 'bold',
   },
   welcomeText: {
     fontSize: 18,
@@ -218,47 +354,63 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#94A3B8',
     lineHeight: 18,
-    marginBottom: 16,
   },
   heroBtn: {
+    marginTop: 14,
     backgroundColor: '#C9962C',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   heroBtnText: {
     color: '#0F172A',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 13,
+  },
+  heroActionBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroActionBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 13,
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     marginBottom: 24,
   },
   statTile: {
     flex: 1,
     backgroundColor: '#1E293B',
-    borderRadius: 14,
-    padding: 16,
-    borderLeftWidth: 3,
+    borderRadius: 12,
+    padding: 14,
+    borderLeftWidth: 4,
     borderLeftColor: '#C9962C',
+    borderWidth: 1,
+    borderColor: 'rgba(203, 213, 225, 0.08)',
   },
   statNumber: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#C9962C',
+    color: '#F8FAFC',
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#94A3B8',
-    marginTop: 2,
+    fontWeight: '600',
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   sectionTitle: {
     fontSize: 16,
@@ -268,56 +420,62 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 13,
     color: '#C9962C',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   loadingBox: {
-    padding: 20,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 30,
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 13,
     color: '#94A3B8',
-    marginTop: 8,
+    fontSize: 13,
+    marginTop: 10,
   },
   errorBox: {
-    padding: 16,
-    backgroundColor: 'rgba(192, 67, 59, 0.15)',
+    backgroundColor: 'rgba(192, 67, 59, 0.1)',
+    borderColor: '#C0433B',
+    borderWidth: 1,
     borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
   },
   errorText: {
     color: '#C0433B',
     fontSize: 13,
+    textAlign: 'center',
   },
   retryBtn: {
-    marginTop: 8,
-    paddingHorizontal: 12,
+    marginTop: 10,
+    backgroundColor: '#C9962C',
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    backgroundColor: '#C0433B',
     borderRadius: 6,
   },
   retryBtnText: {
-    color: '#FFF',
-    fontSize: 12,
+    color: '#0F172A',
     fontWeight: 'bold',
+    fontSize: 12,
   },
   emptyBox: {
-    padding: 24,
     backgroundColor: '#1E293B',
-    borderRadius: 14,
+    borderRadius: 12,
+    padding: 24,
     alignItems: 'center',
   },
   emptyText: {
     color: '#94A3B8',
     fontSize: 13,
+    textAlign: 'center',
   },
   grievanceCard: {
     backgroundColor: '#1E293B',
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(203, 213, 225, 0.1)',
+    borderColor: 'rgba(203, 213, 225, 0.08)',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -326,33 +484,30 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   ticketTitle: {
-    flex: 1,
     fontSize: 15,
     fontWeight: 'bold',
     color: '#F8FAFC',
+    flex: 1,
     marginRight: 8,
   },
   prioBadge: {
-    backgroundColor: 'rgba(74, 127, 191, 0.2)',
-    borderColor: '#4A7FBF',
-    borderWidth: 1,
-    borderRadius: 8,
+    backgroundColor: 'rgba(201, 150, 44, 0.15)',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   criticalBadge: {
     backgroundColor: 'rgba(192, 67, 59, 0.2)',
-    borderColor: '#C0433B',
   },
   prioText: {
+    color: '#C9962C',
     fontSize: 11,
-    color: '#F8FAFC',
     fontWeight: 'bold',
   },
   metaText: {
     fontSize: 12,
     color: '#94A3B8',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -360,12 +515,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: 'rgba(203, 213, 225, 0.08)',
-    paddingTop: 10,
+    paddingTop: 8,
   },
   statusPill: {
     fontSize: 12,
-    color: '#C9962C',
-    fontWeight: 'bold',
+    color: '#F8FAFC',
+    fontWeight: '500',
   },
   deadlineText: {
     fontSize: 11,
@@ -376,28 +531,32 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   bottomNav: {
+    flexDirection: 'row',
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 70,
     backgroundColor: '#1E293B',
-    flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(203, 213, 225, 0.15)',
+    borderTopColor: 'rgba(203, 213, 225, 0.1)',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    justifyContent: 'space-around',
+    alignItems: 'center',
   },
   navItem: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
   },
   navIcon: {
-    fontSize: 20,
+    fontSize: 18,
     marginBottom: 2,
   },
   navLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#94A3B8',
+    fontWeight: '500',
   },
   activeNavLabel: {
     color: '#C9962C',

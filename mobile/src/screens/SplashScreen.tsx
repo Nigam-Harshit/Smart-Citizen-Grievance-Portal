@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { getSecureToken, getSecureUser } from '../services/secureStore';
+import { getSecureToken, getSecureUser, removeSecureToken } from '../services/secureStore';
 import { fetchCurrentProfile } from '../services/authService';
 
 interface SplashScreenProps {
@@ -11,6 +11,8 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onNavigate, onUserLoaded }) => {
   useEffect(() => {
+    let cancelled = false;
+
     async function checkAuthSession() {
       try {
         const token = await getSecureToken();
@@ -18,25 +20,42 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onNavigate, onUserLo
 
         if (token && storedUser) {
           const profileRes = await fetchCurrentProfile();
-          if (profileRes.data && profileRes.data._id) {
+          if (!cancelled && profileRes && profileRes.status === 200 && profileRes.data && profileRes.data._id) {
             onUserLoaded(profileRes.data);
             onNavigate('Home');
             return;
+          } else {
+            // Token is invalid, expired, or user not found on backend — purge stale credentials
+            await removeSecureToken();
           }
+        } else {
+          // No valid session stored
+          await removeSecureToken();
         }
       } catch (err) {
-        console.log('Session auto-login skipped:', err);
+        console.log('Session auto-login failed, purging stale session:', err);
+        await removeSecureToken();
       }
 
-      onNavigate('Login');
+      if (!cancelled) {
+        onNavigate('Login');
+      }
     }
 
     const timer = setTimeout(() => {
       checkAuthSession();
     }, 1500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [onNavigate, onUserLoaded]);
+
+  const handleSkip = async () => {
+    await removeSecureToken();
+    onNavigate('Login');
+  };
 
   return (
     <View style={styles.container}>
@@ -49,7 +68,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onNavigate, onUserLo
         <Text style={styles.loadingText}>Validating Encrypted Keychain Token...</Text>
       </View>
 
-      <TouchableOpacity style={styles.skipBtn} onPress={() => onNavigate('Login')}>
+      <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
         <Text style={styles.skipText}>Tap to Continue →</Text>
       </TouchableOpacity>
     </View>

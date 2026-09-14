@@ -11,6 +11,17 @@ import { GrievanceDetailScreen } from '../screens/GrievanceDetailScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { StaffDirectoryScreen } from '../screens/StaffDirectoryScreen';
 import { AuditLogsScreen } from '../screens/AuditLogsScreen';
+import { logoutCitizen } from '../services/authService';
+
+const PROTECTED_SCREENS: RootScreen[] = [
+  'Home',
+  'SubmitGrievance',
+  'MyGrievances',
+  'GrievanceDetail',
+  'Profile',
+  'StaffDirectory',
+  'AuditLogs',
+];
 
 export const AppNavigator: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<RootScreen>('Splash');
@@ -19,6 +30,11 @@ export const AppNavigator: React.FC = () => {
   const [user, setUser] = useState<any>(null);
 
   const handleNavigate = (screen: RootScreen, params?: any) => {
+    if (!user && PROTECTED_SCREENS.includes(screen)) {
+      setPreviousScreen(currentScreen);
+      setCurrentScreen('Login');
+      return;
+    }
     if (params?.id) {
       setSelectedGrievanceId(params.id);
     }
@@ -26,12 +42,29 @@ export const AppNavigator: React.FC = () => {
     setCurrentScreen(screen);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutCitizen();
+    } catch (e) {
+      console.error('Error during logout:', e);
+    }
     setUser(null);
     setCurrentScreen('Login');
   };
 
   const renderScreen = () => {
+    if (!user && PROTECTED_SCREENS.includes(currentScreen)) {
+      return (
+        <LoginScreen
+          onNavigate={handleNavigate}
+          onLoginSuccess={(u) => {
+            setUser(u);
+            setCurrentScreen('Home');
+          }}
+        />
+      );
+    }
+
     switch (currentScreen) {
       case 'Splash':
         return (
@@ -114,11 +147,19 @@ export const AppNavigator: React.FC = () => {
           />
         );
       default:
-        return (
+        return user ? (
           <HomeScreen
             user={user}
             onNavigate={handleNavigate}
             onLogout={handleLogout}
+          />
+        ) : (
+          <LoginScreen
+            onNavigate={handleNavigate}
+            onLoginSuccess={(u) => {
+              setUser(u);
+              setCurrentScreen('Home');
+            }}
           />
         );
     }

@@ -26,16 +26,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
   const theme = getRoleTheme(role);
 
   useEffect(() => {
+    if (!user) {
+      onLogout();
+      return;
+    }
     loadDashboardData();
-  }, []);
+  }, [user]);
 
   const loadDashboardData = async () => {
+    if (!user) {
+      onLogout();
+      return;
+    }
     setLoading(true);
     setErrorMsg(null);
     try {
       const res = await fetchDutyQueue();
       if (res.data) {
-        const userRole = user?.role || res.data.role || 'citizen';
+        const userRole = user.role;
         let queue: any[] = [];
         let active = 0;
 
@@ -85,12 +93,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
           </View>
           <Text style={styles.welcomeText}>Hello, {user?.name || theme.roleLabel}</Text>
         </View>
-        <TouchableOpacity
-          style={[styles.avatarBtn, { backgroundColor: theme.primary }]}
-          onPress={() => onNavigate('Profile')}
-        >
-          <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <TouchableOpacity
+            style={[styles.avatarBtn, { backgroundColor: theme.primary }]}
+            onPress={() => onNavigate('Profile')}
+          >
+            <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={onLogout}
+          >
+            <Text style={styles.logoutBtnText}>🚪 Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -589,6 +605,21 @@ const styles = StyleSheet.create({
   },
   activeNavLabel: {
     color: '#C9962C',
+    fontWeight: 'bold',
+  },
+  logoutBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutBtnText: {
+    color: '#F87171',
+    fontSize: 12,
     fontWeight: 'bold',
   },
 });

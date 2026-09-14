@@ -88,6 +88,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate, onRe
             onChangeText={setPassword}
             secureTextEntry
           />
+          <Text style={{ color: '#94A3B8', fontSize: 11, marginTop: 4 }}>Minimum 3 characters</Text>
         </View>
 
         <TouchableOpacity

@@ -227,14 +227,21 @@ const AdminDashboard = () => {
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', maxHeight: '280px', overflowY: 'auto' }}>
                                     {dutyQueue?.unassignedInScope?.map(g => (
-                                        <div key={g._id} style={{ background: 'rgba(11, 18, 32, 0.5)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div>
+                                        <div key={g._id} style={{ background: 'rgba(11, 18, 32, 0.5)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                                            <div style={{ minWidth: 0, flex: 1 }}>
                                                 <div style={{ fontWeight: 'bold', fontSize: '0.88rem', color: 'var(--text-primary)' }}>{g.title}</div>
                                                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                                    📍 {g.location} • Priority: <span style={{ color: 'var(--accent-amber)' }}>{g.priority}</span>
+                                                    <span>👤 {g.citizenName || 'Citizen'}</span>
+                                                    {(g.citizenId?.email || g.citizenEmail) && (
+                                                        <span style={{ fontSize: '0.73rem', opacity: 0.85, marginLeft: '4px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                                                            ({g.citizenId?.email || g.citizenEmail})
+                                                        </span>
+                                                    )}
+                                                    <span> • 📍 {g.location} • Priority: </span>
+                                                    <span style={{ color: 'var(--accent-amber)' }}>{g.priority}</span>
                                                 </div>
                                             </div>
-                                            <Link to="/admin/grievances" className="btn-municipal-glass" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', textDecoration: 'none' }}>
+                                            <Link to="/admin/grievances" className="btn-municipal-glass" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>
                                                 Assign Officer
                                             </Link>
                                         </div>
@@ -259,14 +266,22 @@ const AdminDashboard = () => {
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', maxHeight: '280px', overflowY: 'auto' }}>
                                     {dutyQueue?.breachingOrOverdueInScope?.map(g => (
-                                        <div key={g._id} style={{ background: 'rgba(11, 18, 32, 0.5)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div>
+                                        <div key={g._id} style={{ background: 'rgba(11, 18, 32, 0.5)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                                            <div style={{ minWidth: 0, flex: 1 }}>
                                                 <div style={{ fontWeight: 'bold', fontSize: '0.88rem', color: 'var(--text-primary)' }}>{g.title}</div>
+                                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                    <span>👤 {g.citizenName || 'Citizen'}</span>
+                                                    {(g.citizenId?.email || g.citizenEmail) && (
+                                                        <span style={{ fontSize: '0.73rem', opacity: 0.85, marginLeft: '4px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                                                            ({g.citizenId?.email || g.citizenEmail})
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="mono-data" style={{ fontSize: '0.75rem', color: 'var(--signal-red)', marginTop: '2px' }}>
                                                     Target: {new Date(g.deadline).toLocaleString()}
                                                 </div>
                                             </div>
-                                            <Link to={`/citizen/grievance/${g._id}`} className="btn-municipal-glass" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', textDecoration: 'none' }}>
+                                            <Link to={`/citizen/grievance/${g._id}`} className="btn-municipal-glass" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>
                                                 Inspect
                                             </Link>
                                         </div>
@@ -296,6 +311,14 @@ const AdminDashboard = () => {
                                 {dutyQueue?.systemBreached?.map(g => (
                                     <div key={g._id} style={{ background: 'rgba(11, 18, 32, 0.5)', padding: '0.9rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
                                         <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>{g.title}</div>
+                                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                            <span>👤 {g.citizenName || 'Citizen'}</span>
+                                            {(g.citizenId?.email || g.citizenEmail) && (
+                                                <span style={{ fontSize: '0.73rem', opacity: 0.85, marginLeft: '4px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                                                    ({g.citizenId?.email || g.citizenEmail})
+                                                </span>
+                                            )}
+                                        </div>
                                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                                             Category: <span style={{ color: 'var(--text-primary)' }}>{g.category}</span> • Assigned: {g.assignedTo?.name || 'Unassigned'}
                                         </div>

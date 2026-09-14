@@ -200,8 +200,15 @@ const OfficerDashboard = () => {
                                                     {g.status}
                                                 </span>
                                             </div>
-                                            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                                                <span>👤 {g.citizenName || 'Citizen'}</span>
+                                            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                                <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '4px', flexWrap: 'wrap' }}>
+                                                    <span>👤 {g.citizenName || 'Citizen'}</span>
+                                                    {(g.citizenId?.email || g.citizenEmail) && (
+                                                        <span style={{ fontSize: '0.74rem', opacity: 0.85, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                                                            ({g.citizenId?.email || g.citizenEmail})
+                                                        </span>
+                                                    )}
+                                                </span>
                                                 <span>📍 {g.location}</span>
                                                 <span>🏷️ {g.category}</span>
                                                 <span className="mono-data" style={{ color: isOverdue ? 'var(--signal-red)' : 'var(--accent-amber)', fontWeight: 'bold' }}>

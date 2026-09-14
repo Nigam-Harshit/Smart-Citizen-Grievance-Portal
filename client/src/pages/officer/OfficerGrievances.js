@@ -102,7 +102,12 @@ const OfficerGrievances = () => {
                 </p>
 
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.8rem' }}>
-                    📍 {item.location} • <span style={{ color: 'var(--text-primary)' }}>{item.citizenName}</span>
+                    📍 {item.location} • <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>👤 {item.citizenName || 'Citizen'}</span>
+                    {(item.citizenId?.email || item.citizenEmail) && (
+                        <span style={{ fontSize: '0.73rem', opacity: 0.85, marginLeft: '4px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                            ({item.citizenId?.email || item.citizenEmail})
+                        </span>
+                    )}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.6rem', borderTop: '1px solid var(--glass-border)' }}>

@@ -244,6 +244,16 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
 
             <Text style={styles.metaText}>📍 {grievance.location}</Text>
             <Text style={styles.metaText}>🏷️ Category: <Text style={{ color: '#F8FAFC' }}>{grievance.category}</Text></Text>
+            <View style={styles.citizenMetaRow}>
+              <Text style={styles.metaText}>
+                👤 Citizen: <Text style={{ color: '#F8FAFC', fontWeight: 'bold' }}>{grievance.citizenName || 'Citizen'}</Text>
+              </Text>
+              {(grievance.citizenId?.email || grievance.citizenEmail) && (
+                <Text style={styles.citizenEmailText} numberOfLines={1} ellipsizeMode="tail">
+                  ({grievance.citizenId?.email || grievance.citizenEmail})
+                </Text>
+              )}
+            </View>
             <Text style={styles.metaText}>
               👮 Assigned: <Text style={{ color: '#C9962C', fontWeight: 'bold' }}>{grievance.assignedTo?.name || grievance.officerName || 'Unassigned'}</Text>
             </Text>
@@ -583,6 +593,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#94A3B8',
     marginBottom: 4,
+  },
+  citizenMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  citizenEmailText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    flexShrink: 1,
+    maxWidth: 240,
   },
   slaBanner: {
     backgroundColor: 'rgba(192, 67, 59, 0.15)',

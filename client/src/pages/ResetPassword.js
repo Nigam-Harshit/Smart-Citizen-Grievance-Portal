@@ -53,10 +53,10 @@ const ResetPassword = () => {
                             <label style={{ color: 'var(--text-primary)' }}>New Password</label>
                             <input
                                 type="password"
-                                placeholder="Min 6 characters"
+                                placeholder="Min 3 characters"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                minLength="6"
+                                minLength="3"
                                 required
                             />
                         </div>
@@ -68,7 +68,7 @@ const ResetPassword = () => {
                                 placeholder="Confirm new password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                minLength="6"
+                                minLength="3"
                                 required
                             />
                         </div>

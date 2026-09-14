@@ -20,10 +20,14 @@ const registerUser = async (req, res) => {
             return res.status(400).json({ message: 'Please provide full name, email, and password' });
         }
 
+        if (password.length < 3) {
+            return res.status(400).json({ message: 'Password must be at least 3 characters' });
+        }
+
         const normEmail = email.toLowerCase().trim();
         const userExists = await User.findOne({ email: normEmail });
         if (userExists) {
-            return res.status(400).json({ message: 'A user with this email address already exists' });
+            return res.status(400).json({ message: 'This ID is already registered. Please use a different ID.' });
         }
 
         // Public registration is ALWAYS forced to 'citizen'
@@ -61,7 +65,13 @@ const registerUser = async (req, res) => {
         });
     } catch (error) {
         console.error('Registration Error:', error);
-        res.status(500).json({ message: error.message || 'Server error during registration' });
+        if (error.code === 11000 || (error.name === 'MongoServerError' && error.code === 11000)) {
+            return res.status(400).json({ message: 'This ID is already registered. Please use a different ID.' });
+        }
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: error.message });
+        }
+        res.status(500).json({ message: 'Server error during registration' });
     }
 };
 
@@ -74,19 +84,24 @@ const createStaffUser = async (req, res) => {
             return res.status(400).json({ message: 'Please provide name, email, password and role' });
         }
 
+        if (password.length < 3) {
+            return res.status(400).json({ message: 'Password must be at least 3 characters' });
+        }
+
         const validRoles = ['admin', 'manager', 'officer', 'field_officer'];
         if (!validRoles.includes(role)) {
             return res.status(400).json({ message: 'Invalid role for staff creation' });
         }
 
-        const userExists = await User.findOne({ email });
+        const normEmail = email.toLowerCase().trim();
+        const userExists = await User.findOne({ email: normEmail });
         if (userExists) {
-            return res.status(400).json({ message: 'User with this email already exists' });
+            return res.status(400).json({ message: 'This ID is already registered. Please use a different ID.' });
         }
 
         const user = await User.create({
             name,
-            email,
+            email: normEmail,
             password,
             phone: phone || '',
             role: role === 'field_officer' ? 'officer' : role,
@@ -104,6 +119,9 @@ const createStaffUser = async (req, res) => {
         });
     } catch (error) {
         console.error('Create Staff Error:', error);
+        if (error.code === 11000 || (error.name === 'MongoServerError' && error.code === 11000)) {
+            return res.status(400).json({ message: 'This ID is already registered. Please use a different ID.' });
+        }
         res.status(500).json({ message: error.message });
     }
 };
@@ -116,7 +134,14 @@ const loginUser = async (req, res) => {
             return res.status(400).json({ message: 'Please provide email and password' });
         }
 
-        const user = await User.findOne({ email }).select('+password');
+        const normEmail = email.toLowerCase().trim();
+        const user = await User.findOne({
+            $or: [
+                { email: normEmail },
+                { email: email.trim() },
+                { email: { $regex: new RegExp(`^${normEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
+            ]
+        }).select('+password');
 
         if (user && (await user.matchPassword(password))) {
             await logAudit(user._id, 'User Login', `${user.role.toUpperCase()} successfully authenticated.`);
@@ -219,6 +244,10 @@ const resetPassword = async (req, res) => {
 
     if (!user) {
         return res.status(400).json({ message: 'Invalid token' });
+    }
+
+    if (!req.body.password || req.body.password.length < 3) {
+        return res.status(400).json({ message: 'Password must be at least 3 characters' });
     }
 
     user.password = req.body.password;

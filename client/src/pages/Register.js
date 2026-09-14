@@ -72,11 +72,11 @@ const Register = () => {
                         <label>Password *</label>
                         <input
                             type="password"
-                            placeholder="••••••••"
+                            placeholder="•••••••• (Min 3 characters)"
                             value={formData.password}
                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             required
-                            minLength="6"
+                            minLength="3"
                         />
                     </div>
 

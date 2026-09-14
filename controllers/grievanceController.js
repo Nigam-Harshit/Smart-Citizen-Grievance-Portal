@@ -164,6 +164,7 @@ const createGrievance = async (req, res) => {
         const grievance = await Grievance.create({
             citizenId,
             citizenName,
+            citizenEmail: citizenDoc.email || '',
             title,
             description,
             category,

@@ -199,6 +199,11 @@ const GrievanceDetail = () => {
                                 <div style={{ color: 'var(--text-primary)', marginTop: '4px', fontWeight: '500' }}>
                                     👤 {grievance.citizenName || 'Registered Citizen'}
                                 </div>
+                                {(grievance.citizenId?.email || grievance.citizenEmail) && (
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '2px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                                        {grievance.citizenId?.email || grievance.citizenEmail}
+                                    </div>
+                                )}
                             </div>
 
                             <div>

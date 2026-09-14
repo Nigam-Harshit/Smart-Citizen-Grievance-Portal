@@ -115,6 +115,16 @@ export const MyGrievancesScreen: React.FC<MyGrievancesScreenProps> = ({ user, on
               <Text style={styles.officerText}>
                 👮 Assigned: {item.assignedTo?.name || item.officerName || 'Unassigned'}
               </Text>
+              {(item.citizenName || item.citizenId?.email || item.citizenEmail) && (
+                <View style={styles.citizenMetaRow}>
+                  <Text style={styles.citizenNameText}>👤 {item.citizenName || 'Citizen'}</Text>
+                  {(item.citizenId?.email || item.citizenEmail) && (
+                    <Text style={styles.citizenEmailText} numberOfLines={1} ellipsizeMode="tail">
+                      ({item.citizenId?.email || item.citizenEmail})
+                    </Text>
+                  )}
+                </View>
+              )}
 
               <View style={styles.cardFooter}>
                 <Text style={[styles.statusPill, item.status === 'Resolved' && styles.statusResolved]}>
@@ -264,7 +274,25 @@ const styles = StyleSheet.create({
   officerText: {
     fontSize: 12,
     color: '#F8FAFC',
+    marginBottom: 6,
+  },
+  citizenMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 10,
+    flexWrap: 'wrap',
+  },
+  citizenNameText: {
+    fontSize: 12,
+    color: '#E2E8F0',
+    fontWeight: '600',
+  },
+  citizenEmailText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    flexShrink: 1,
+    maxWidth: 220,
   },
   cardFooter: {
     flexDirection: 'row',

@@ -20,8 +20,8 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate, onRe
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Password Length', 'Password must be at least 6 characters.');
+    if (password.length < 3) {
+      Alert.alert('Password Length', 'Password must be at least 3 characters.');
       return;
     }
 
@@ -82,7 +82,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate, onRe
           <Text style={styles.label}>Password *</Text>
           <TextInput
             style={styles.input}
-            placeholder="•••••••• (Min 6 chars)"
+            placeholder="•••••••• (Min 3 chars)"
             placeholderTextColor="#64748B"
             value={password}
             onChangeText={setPassword}

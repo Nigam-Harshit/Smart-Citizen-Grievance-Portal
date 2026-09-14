@@ -177,8 +177,13 @@ const MasterGrievances = () => {
                                                 </div>
                                             </td>
                                             <td>
-                                                <div style={{ fontWeight: '500' }}>{g.citizenName || 'Citizen'}</div>
-                                                <div className="mono-data" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{g.citizenName || 'Citizen'}</div>
+                                                {(g.citizenId?.email || g.citizenEmail) && (
+                                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', overflowWrap: 'anywhere', wordBreak: 'break-word', maxWidth: '200px' }}>
+                                                        {g.citizenId?.email || g.citizenEmail}
+                                                    </div>
+                                                )}
+                                                <div className="mono-data" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', opacity: 0.85, marginTop: '2px' }}>
                                                     {new Date(g.createdAt).toLocaleDateString()}
                                                 </div>
                                             </td>

@@ -10,6 +10,11 @@ const grievanceSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  citizenEmail: {
+    type: String,
+    lowercase: true,
+    trim: true
+  },
   title: {
     type: String,
     required: [true, 'Please add a grievance title']

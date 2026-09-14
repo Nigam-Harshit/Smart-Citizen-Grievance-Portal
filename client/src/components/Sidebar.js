@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useContext, useState, useEffect } from 'react';
 import AuthContext from '../context/AuthContext';
+import { getRoleTheme } from '../theme/roleTheme';
 
 const Sidebar = () => {
     const { user, logout } = useContext(AuthContext);
     const location = useLocation();
     const [collapsed, setCollapsed] = useState(false);
+    const roleTheme = getRoleTheme(user?.role);
 
     useEffect(() => {
         const stored = localStorage.getItem('sidebar_collapsed');
@@ -30,12 +32,12 @@ const Sidebar = () => {
             padding: collapsed ? '0.75rem 0' : '0.75rem 1rem',
             justifyContent: collapsed ? 'center' : 'flex-start',
             gap: collapsed ? '0' : '10px',
-            color: active ? 'var(--accent-amber)' : 'var(--text-muted)',
-            background: active ? 'var(--accent-amber-dim)' : 'transparent',
+            color: active ? roleTheme.secondary : 'var(--text-muted)',
+            background: active ? roleTheme.badgeBg : 'transparent',
             textDecoration: 'none',
             borderRadius: active ? '0 8px 8px 0' : '6px',
             transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-            borderLeft: active ? '3px solid var(--accent-amber)' : '3px solid transparent',
+            borderLeft: active ? `3px solid ${roleTheme.primary}` : '3px solid transparent',
             fontWeight: active ? '700' : '500',
             fontSize: '0.88rem'
         };
@@ -82,9 +84,26 @@ const Sidebar = () => {
                         <span style={{ fontSize: '1.4rem' }}>🏛️</span> {!collapsed && <span style={{ fontFamily: 'Fraunces, serif' }}>Civic Portal</span>}
                     </h2>
                     {!collapsed && (
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: '4px 0 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {user?.name?.split(' ')[0]} <span style={{ color: 'var(--accent-amber)', textTransform: 'uppercase', fontWeight: 'bold' }}>• {user?.role}</span>
-                        </p>
+                        <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90px' }}>
+                                {user?.name?.split(' ')[0]}
+                            </span>
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                background: roleTheme.badgeBg,
+                                border: `1px solid ${roleTheme.badgeBorder}`,
+                                color: roleTheme.badgeText,
+                                borderRadius: '10px',
+                                padding: '1px 7px',
+                                fontSize: '0.68rem',
+                                fontWeight: '700',
+                                letterSpacing: '0.03em'
+                            }}>
+                                {roleTheme.icon} {roleTheme.roleLabel}
+                            </span>
+                        </div>
                     )}
 
                     <button onClick={toggleSidebar} style={{

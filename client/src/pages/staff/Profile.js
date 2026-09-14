@@ -3,9 +3,11 @@ import API from '../../utils/api';
 import AuthContext from '../../context/AuthContext';
 import Sidebar from '../../components/Sidebar';
 import Topbar from '../../components/Topbar';
+import { getRoleTheme } from '../../theme/roleTheme';
 
 const Profile = () => {
     const { user } = useContext(AuthContext);
+    const roleTheme = getRoleTheme(user?.role);
     const [editMode, setEditMode] = useState(false);
     const [formData, setFormData] = useState({
         name: user?.name || '',
@@ -43,17 +45,18 @@ const Profile = () => {
                 <Topbar title="My Profile" />
 
                 <div className="glass-card" style={{ maxWidth: '900px', display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden', margin: '0 auto' }}>
-                    {/* Header Banner */}
+                    {/* Profile Header Cover */}
                     <div style={{ 
                         height: '150px', 
-                        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(59, 130, 246, 0.2))',
+                        background: roleTheme.surfaceGradient,
+                        borderBottom: `1px solid ${roleTheme.cardBorder}`,
                         position: 'relative'
                     }}>
                         <div style={{
                             width: '100px',
                             height: '100px',
                             borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
+                            background: roleTheme.primary,
                             position: 'absolute',
                             bottom: '-50px',
                             left: '30px',
@@ -63,8 +66,8 @@ const Profile = () => {
                             justifyContent: 'center',
                             fontSize: '2.5rem',
                             fontWeight: 'bold',
-                            color: 'white',
-                            boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                            color: roleTheme.primaryBtnText,
+                            boxShadow: `0 4px 14px ${roleTheme.glow}`
                         }}>
                             {user?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
@@ -87,10 +90,19 @@ const Profile = () => {
                                 
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                     <span className="badge" style={{ 
-                                        background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', padding: '0.4rem 0.8rem', 
-                                        borderRadius: '12px', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold'
+                                        background: roleTheme.badgeBg,
+                                        border: `1px solid ${roleTheme.badgeBorder}`,
+                                        color: roleTheme.badgeText,
+                                        padding: '0.4rem 0.8rem', 
+                                        borderRadius: '12px',
+                                        fontSize: '0.85rem',
+                                        textTransform: 'uppercase',
+                                        fontWeight: 'bold',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
                                     }}>
-                                        {user?.role} Access {user?.scope && user.scope !== 'All' ? `(${user.scope})` : ''}
+                                        {roleTheme.icon} {roleTheme.roleLabel} {user?.scope && user.scope !== 'All' ? `(${user.scope})` : ''}
                                     </span>
                                     <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                                         Profile {calculateCompletion()}% Complete

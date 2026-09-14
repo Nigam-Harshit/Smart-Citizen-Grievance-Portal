@@ -108,42 +108,6 @@ const Landing = () => {
                     </p>
                 </div>
             </section>
-
-            {/* Quick Demo Accounts Banner */}
-            <div className="glass-panel stagger-in" style={{
-                maxWidth: '900px',
-                width: '100%',
-                padding: '1.8rem',
-                borderRadius: '16px',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--glass-border)'
-            }}>
-                <h4 style={{ margin: '0 0 1rem 0', color: 'var(--accent-amber)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center' }}>
-                    🔑 Demo Access Credentials
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', fontSize: '0.85rem' }}>
-                    <div style={{ background: 'rgba(148, 163, 184, 0.04)', padding: '0.8rem', borderRadius: '8px', borderLeft: '3px solid var(--signal-red)' }}>
-                        <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>🛡️ Admin Command Center</div>
-                        <div className="mono-data" style={{ color: 'var(--text-muted)' }}>admin@grievance.gov.in</div>
-                        <div className="mono-data" style={{ color: 'var(--accent-amber)', fontWeight: 'bold' }}>Password123!</div>
-                    </div>
-                    <div style={{ background: 'rgba(148, 163, 184, 0.04)', padding: '0.8rem', borderRadius: '8px', borderLeft: '3px solid var(--accent-amber)' }}>
-                        <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>📊 Civic Manager</div>
-                        <div className="mono-data" style={{ color: 'var(--text-muted)' }}>manager@grievance.gov.in</div>
-                        <div className="mono-data" style={{ color: 'var(--accent-amber)', fontWeight: 'bold' }}>Password123!</div>
-                    </div>
-                    <div style={{ background: 'rgba(148, 163, 184, 0.04)', padding: '0.8rem', borderRadius: '8px', borderLeft: '3px solid var(--signal-blue)' }}>
-                        <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>👮 Field Officer</div>
-                        <div className="mono-data" style={{ color: 'var(--text-muted)' }}>officer.sharma@grievance.gov.in</div>
-                        <div className="mono-data" style={{ color: 'var(--accent-amber)', fontWeight: 'bold' }}>Password123!</div>
-                    </div>
-                    <div style={{ background: 'rgba(148, 163, 184, 0.04)', padding: '0.8rem', borderRadius: '8px', borderLeft: '3px solid var(--signal-green)' }}>
-                        <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>🏡 Citizen Portal</div>
-                        <div className="mono-data" style={{ color: 'var(--text-muted)' }}>citizen.rajesh@gmail.com</div>
-                        <div className="mono-data" style={{ color: 'var(--accent-amber)', fontWeight: 'bold' }}>Password123!</div>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };

@@ -4,11 +4,14 @@ import AuthContext from '../../context/AuthContext';
 import Topbar from '../../components/Topbar';
 import Sidebar from '../../components/Sidebar';
 import API from '../../utils/api';
+import { getRoleTheme } from '../../theme/roleTheme';
 
 const OfficerDashboard = () => {
     const { user } = useContext(AuthContext);
+    const roleTheme = getRoleTheme('officer');
     const [dutyQueue, setDutyQueue] = useState([]);
     const [myQueueCount, setMyQueueCount] = useState(0);
+    const [resolvedCount, setResolvedCount] = useState(0);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -20,6 +23,7 @@ const OfficerDashboard = () => {
             const { data } = await API.get('/api/dashboard/duty-queue');
             setDutyQueue(data.myQueue || []);
             setMyQueueCount(data.myQueueCount || 0);
+            setResolvedCount(data.resolvedCount ?? 0);
         } catch (err) {
             console.error('Error fetching officer duty queue:', err);
         } finally {
@@ -36,39 +40,78 @@ const OfficerDashboard = () => {
             <div className="main-content">
                 <Topbar title="Field Officer Workspace" />
 
-                {/* Hero Banner */}
+                {/* Hero Banner with Subtle Officer Role Accent */}
                 <div className="glass-panel" style={{
                     padding: '2rem',
                     borderRadius: '16px',
                     marginBottom: '2rem',
-                    background: 'var(--glass-tint)',
-                    border: '1px solid var(--glass-border)',
+                    background: roleTheme.surfaceGradient,
+                    border: `1px solid ${roleTheme.cardBorder}`,
+                    borderLeft: `4px solid ${roleTheme.primary}`,
+                    boxShadow: `0 10px 30px -5px ${roleTheme.glow}`,
                     display: 'flex',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     gap: '1.5rem',
                     flexWrap: 'wrap'
                 }}>
                     <div>
-                        <h2 style={{ margin: '0 0 0.4rem 0', fontSize: '1.35rem' }}>
-                            Welcome, {user?.name || 'Officer'}
-                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.35rem' }}>
+                                Welcome, {user?.name || 'Officer'}
+                            </h2>
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                background: roleTheme.badgeBg,
+                                border: `1px solid ${roleTheme.badgeBorder}`,
+                                color: roleTheme.badgeText,
+                                borderRadius: '12px',
+                                padding: '2px 8px',
+                                fontSize: '0.72rem',
+                                fontWeight: '700',
+                                letterSpacing: '0.04em'
+                            }}>
+                                {roleTheme.icon} {roleTheme.roleLabel}
+                            </span>
+                        </div>
                         <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '650px' }}>
-                            You have <strong style={{ color: 'var(--accent-amber)' }}>{myQueueCount} active ticket(s)</strong> in your assigned duty queue, ordered by SLA urgency.
+                            You have <strong style={{ color: roleTheme.secondary }}>{myQueueCount} active ticket(s)</strong> in your assigned duty queue, ordered by SLA urgency.
                         </p>
                     </div>
-                    <Link to="/officer/grievances" className="btn-municipal" style={{ textDecoration: 'none', padding: '0.8rem 1.6rem' }}>
+                    <Link to="/officer/grievances" style={{
+                        textDecoration: 'none',
+                        padding: '0.75rem 1.6rem',
+                        background: roleTheme.primary,
+                        color: roleTheme.primaryBtnText,
+                        borderRadius: '10px',
+                        fontWeight: '600',
+                        fontSize: '0.92rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        boxShadow: `0 4px 14px ${roleTheme.glow}`,
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                    }}>
                         📌 Open Field Kanban Board
                     </Link>
                 </div>
 
-                {/* Duty Panel KPI Widgets */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px', borderLeft: '3px solid var(--signal-blue)' }}>
+                {/* Duty Panel KPI Widgets (Assigned, Critical, Overdue, Resolved) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                    <div className="glass-card stagger-in" style={{
+                        padding: '1.5rem',
+                        borderRadius: '14px',
+                        background: roleTheme.surfaceGradient,
+                        border: `1px solid ${roleTheme.cardBorder}`,
+                        borderLeft: `3px solid ${roleTheme.primary}`
+                    }}>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             MY ASSIGNED QUEUE
                         </div>
-                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: roleTheme.secondary, marginTop: '0.2rem' }}>
                             {myQueueCount}
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
@@ -97,6 +140,18 @@ const OfficerDashboard = () => {
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
                             Overdue deadline breach
+                        </div>
+                    </div>
+
+                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px', borderLeft: '3px solid var(--signal-green)' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            RESOLVED TICKETS
+                        </div>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--signal-green)', marginTop: '0.2rem' }}>
+                            {resolvedCount}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                            Successfully verified & closed
                         </div>
                     </div>
                 </div>

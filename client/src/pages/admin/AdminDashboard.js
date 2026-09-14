@@ -16,6 +16,7 @@ import {
 } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 import { Link } from 'react-router-dom';
+import { getRoleTheme } from '../../theme/roleTheme';
 
 ChartJS.register(
     CategoryScale,
@@ -30,6 +31,7 @@ ChartJS.register(
 
 const AdminDashboard = () => {
     const { user } = useContext(AuthContext);
+    const roleTheme = getRoleTheme(user?.role);
     const [stats, setStats] = useState(null);
     const [dutyQueue, setDutyQueue] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -138,29 +140,62 @@ const AdminDashboard = () => {
             <div className="main-content">
                 <Topbar title={isManager ? `Manager Workspace (${userScope})` : "Admin Command Center"} />
 
-                {/* Hero Scope Welcome Banner */}
+                {/* Hero Scope Welcome Banner with Subtle Role Accent */}
                 <div className="glass-panel" style={{
                     padding: '1.6rem 2rem',
                     borderRadius: '16px',
                     marginBottom: '1.8rem',
-                    background: 'var(--glass-tint)',
-                    border: '1px solid var(--glass-border)',
+                    background: roleTheme.surfaceGradient,
+                    border: `1px solid ${roleTheme.cardBorder}`,
+                    borderLeft: `4px solid ${roleTheme.primary}`,
+                    boxShadow: `0 10px 30px -5px ${roleTheme.glow}`,
                     display: 'flex',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     flexWrap: 'wrap',
                     gap: '1rem'
                 }}>
                     <div>
-                        <h2 style={{ margin: '0 0 0.3rem 0', fontSize: '1.3rem' }}>
-                            Welcome, {user?.name || 'Administrator'}
-                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.3rem' }}>
+                                Welcome, {user?.name || (isManager ? 'Civic Manager' : 'Administrator')}
+                            </h2>
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                background: roleTheme.badgeBg,
+                                border: `1px solid ${roleTheme.badgeBorder}`,
+                                color: roleTheme.badgeText,
+                                borderRadius: '12px',
+                                padding: '2px 8px',
+                                fontSize: '0.72rem',
+                                fontWeight: '700',
+                                letterSpacing: '0.04em'
+                            }}>
+                                {roleTheme.icon} {roleTheme.roleLabel}
+                            </span>
+                        </div>
                         <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-                            Role: <strong style={{ color: 'var(--accent-amber)' }}>{user?.role?.toUpperCase()}</strong> • Scope Jurisdiction: <strong style={{ color: 'var(--signal-blue)' }}>{userScope}</strong>
+                            Role: <strong style={{ color: roleTheme.secondary }}>{user?.role?.toUpperCase()}</strong> • Scope Jurisdiction: <strong style={{ color: roleTheme.secondary }}>{userScope}</strong>
                         </div>
                     </div>
 
-                    <Link to="/admin/grievances" className="btn-municipal" style={{ textDecoration: 'none', padding: '0.7rem 1.4rem' }}>
+                    <Link to="/admin/grievances" style={{
+                        textDecoration: 'none',
+                        padding: '0.75rem 1.6rem',
+                        background: roleTheme.primary,
+                        color: roleTheme.primaryBtnText,
+                        borderRadius: '10px',
+                        fontWeight: '600',
+                        fontSize: '0.92rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        boxShadow: `0 4px 14px ${roleTheme.glow}`,
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                    }}>
                         📋 View Master Grievance Tracker →
                     </Link>
                 </div>
@@ -170,12 +205,19 @@ const AdminDashboard = () => {
                     /* Manager Duty Panel Widget */
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
                         {/* Unassigned Tickets in Scope */}
-                        <div className="glass-panel" style={{ padding: '1.6rem', borderRadius: '14px', borderLeft: '4px solid var(--accent-amber)' }}>
+                        <div className="glass-panel" style={{
+                            padding: '1.6rem',
+                            borderRadius: '14px',
+                            background: roleTheme.surfaceGradient,
+                            border: `1px solid ${roleTheme.cardBorder}`,
+                            borderLeft: `4px solid ${roleTheme.primary}`,
+                            boxShadow: `0 8px 24px -4px ${roleTheme.glow}`
+                        }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontFamily: 'Fraunces, serif' }}>
                                     📥 Unassigned Tickets in Scope ({dutyQueue?.unassignedCount || 0})
                                 </h3>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--accent-amber)', fontWeight: 'bold' }}>Scope: {userScope}</span>
+                                <span style={{ fontSize: '0.75rem', color: roleTheme.secondary, fontWeight: 'bold' }}>Scope: {userScope}</span>
                             </div>
 
                             {dutyQueue?.unassignedInScope?.length === 0 ? (
@@ -268,12 +310,20 @@ const AdminDashboard = () => {
                 )}
 
                 {/* Minimalist Stat Tiles */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                    <div className="glass-card stagger-in" style={{
+                        padding: '1.5rem',
+                        borderRadius: '14px',
+                        ...(!isManager ? {
+                            background: roleTheme.surfaceGradient,
+                            border: `1px solid ${roleTheme.cardBorder}`,
+                            borderLeft: `3px solid ${roleTheme.primary}`
+                        } : {})
+                    }}>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             REGISTERED CITIZENS
                         </div>
-                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: !isManager ? roleTheme.secondary : 'var(--text-primary)', marginTop: '0.2rem' }}>
                             {stats?.totalCitizens || 0}
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
@@ -281,11 +331,19 @@ const AdminDashboard = () => {
                         </div>
                     </div>
 
-                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px' }}>
+                    <div className="glass-card stagger-in" style={{
+                        padding: '1.5rem',
+                        borderRadius: '14px',
+                        ...(isManager ? {
+                            background: roleTheme.surfaceGradient,
+                            border: `1px solid ${roleTheme.cardBorder}`,
+                            borderLeft: `3px solid ${roleTheme.primary}`
+                        } : {})
+                    }}>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             {isManager ? `COMPLAINTS IN ${userScope.toUpperCase()}` : 'TOTAL COMPLAINTS'}
                         </div>
-                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: isManager ? roleTheme.secondary : 'var(--text-primary)', marginTop: '0.2rem' }}>
                             {stats?.totalGrievances || 0}
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
@@ -307,9 +365,21 @@ const AdminDashboard = () => {
 
                     <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px', borderLeft: '3px solid var(--signal-green)' }}>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            AVG RESOLUTION TIME
+                            {isManager ? `RESOLVED IN ${userScope.toUpperCase()}` : 'RESOLVED COMPLAINTS'}
                         </div>
                         <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--signal-green)', marginTop: '0.2rem' }}>
+                            {dutyQueue?.resolvedCount ?? stats?.healthSummary?.resolved ?? 0}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                            {isManager ? 'Scope tickets resolved' : 'System-wide resolved'}
+                        </div>
+                    </div>
+
+                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px', borderLeft: '3px solid var(--signal-blue)' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            AVG RESOLUTION TIME
+                        </div>
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--signal-blue)', marginTop: '0.2rem' }}>
                             {stats?.avgResolutionTimeHours || 0}<span style={{ fontSize: '1.2rem' }}>h</span>
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
@@ -341,7 +411,20 @@ const AdminDashboard = () => {
                             {isManager ? `Browse all ${userScope} complaints or assign field officers.` : 'Access complete jurisdiction complaint inventory, filter by category, or assign field officers.'}
                         </p>
                     </div>
-                    <Link to="/admin/grievances" className="btn-municipal" style={{ textDecoration: 'none' }}>
+                    <Link to="/admin/grievances" style={{
+                        textDecoration: 'none',
+                        padding: '0.65rem 1.4rem',
+                        background: roleTheme.primary,
+                        color: roleTheme.primaryBtnText,
+                        borderRadius: '10px',
+                        fontWeight: '600',
+                        fontSize: '0.88rem',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        boxShadow: `0 4px 14px ${roleTheme.glow}`,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}>
                         View Master Tracker →
                     </Link>
                 </div>

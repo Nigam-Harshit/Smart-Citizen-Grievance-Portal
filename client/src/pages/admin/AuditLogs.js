@@ -3,6 +3,7 @@ import API from '../../utils/api';
 import Sidebar from '../../components/Sidebar';
 import Topbar from '../../components/Topbar';
 import ExportButtons from '../../components/ExportButtons';
+import { getRoleTheme } from '../../theme/roleTheme';
 
 const AuditLogs = () => {
     const [logs, setLogs] = useState([]);
@@ -182,14 +183,30 @@ const AuditLogs = () => {
                                                 </div>
                                             </td>
                                             <td>
-                                                {log.userId ? (
-                                                    <div>
-                                                        <div style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '0.88rem' }}>{log.userId.name}</div>
-                                                        <span className="status-pill status-open" style={{ fontSize: '0.68rem', padding: '0.1rem 0.4rem', textTransform: 'uppercase' }}>
-                                                            {log.userId.role}
-                                                        </span>
-                                                    </div>
-                                                ) : (
+                                                {log.userId ? (() => {
+                                                    const actorTheme = getRoleTheme(log.userId.role);
+                                                    return (
+                                                        <div>
+                                                            <div style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '0.88rem' }}>{log.userId.name}</div>
+                                                            <span style={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '3px',
+                                                                background: actorTheme.badgeBg,
+                                                                border: `1px solid ${actorTheme.badgeBorder}`,
+                                                                color: actorTheme.badgeText,
+                                                                borderRadius: '10px',
+                                                                padding: '1px 6px',
+                                                                fontSize: '0.68rem',
+                                                                fontWeight: '700',
+                                                                letterSpacing: '0.03em',
+                                                                textTransform: 'uppercase'
+                                                            }}>
+                                                                {actorTheme.icon} {actorTheme.roleLabel}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })() : (
                                                     <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>
                                                         🤖 System Script
                                                     </span>

@@ -4,9 +4,11 @@ import Topbar from '../../components/Topbar';
 import API from '../../utils/api';
 import AuthContext from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
+import { getRoleTheme } from '../../theme/roleTheme';
 
 const CitizenDashboard = () => {
     const { user } = useContext(AuthContext);
+    const roleTheme = getRoleTheme('citizen');
     const [grievances, setGrievances] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -14,7 +16,7 @@ const CitizenDashboard = () => {
         const fetchCitizenGrievances = async () => {
             try {
                 const { data } = await API.get('/api/grievances');
-                setGrievances(data);
+                setGrievances(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error('Error fetching citizen grievances:', err);
             } finally {
@@ -25,9 +27,10 @@ const CitizenDashboard = () => {
         fetchCitizenGrievances();
     }, []);
 
-    const openCount = grievances.filter(g => g.status === 'Open').length;
-    const inProgressCount = grievances.filter(g => g.status === 'In Progress').length;
-    const resolvedCount = grievances.filter(g => g.status === 'Resolved').length;
+    const totalCount = Array.isArray(grievances) ? grievances.length : 0;
+    const openCount = Array.isArray(grievances) ? grievances.filter(g => g.status === 'Open').length : 0;
+    const inProgressCount = Array.isArray(grievances) ? grievances.filter(g => g.status === 'In Progress').length : 0;
+    const resolvedCount = Array.isArray(grievances) ? grievances.filter(g => g.status === 'Resolved').length : 0;
 
     return (
         <div style={{ display: 'flex' }}>
@@ -35,40 +38,79 @@ const CitizenDashboard = () => {
             <div className="main-content">
                 <Topbar title="Citizen Public Portal" />
 
-                {/* Welcome Glass Banner */}
+                {/* Welcome Glass Banner with Subtle Citizen Role Accent */}
                 <div className="glass-panel" style={{
                     padding: '2rem',
                     borderRadius: '16px',
                     marginBottom: '2rem',
-                    background: 'var(--glass-tint)',
-                    border: '1px solid var(--glass-border)',
+                    background: roleTheme.surfaceGradient,
+                    border: `1px solid ${roleTheme.cardBorder}`,
+                    borderLeft: `4px solid ${roleTheme.primary}`,
+                    boxShadow: `0 10px 30px -5px ${roleTheme.glow}`,
                     display: 'flex',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     gap: '1.5rem',
                     flexWrap: 'wrap'
                 }}>
                     <div>
-                        <h2 style={{ margin: '0 0 0.4rem 0', fontSize: '1.4rem' }}>
-                            Welcome back, {user?.name || 'Citizen'}
-                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.4rem' }}>
+                                Welcome back, {user?.name || 'Citizen'}
+                            </h2>
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                background: roleTheme.badgeBg,
+                                border: `1px solid ${roleTheme.badgeBorder}`,
+                                color: roleTheme.badgeText,
+                                borderRadius: '12px',
+                                padding: '2px 8px',
+                                fontSize: '0.72rem',
+                                fontWeight: '700',
+                                letterSpacing: '0.04em'
+                            }}>
+                                {roleTheme.icon} {roleTheme.roleLabel}
+                            </span>
+                        </div>
                         <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '650px' }}>
                             Lodge public grievances, track real-time resolution timelines, and view field officer assignment updates.
                         </p>
                     </div>
-                    <Link to="/citizen/submit" className="btn-municipal" style={{ textDecoration: 'none', padding: '0.8rem 1.6rem' }}>
+                    <Link to="/citizen/submit" style={{
+                        textDecoration: 'none',
+                        padding: '0.75rem 1.6rem',
+                        background: roleTheme.primary,
+                        color: roleTheme.primaryBtnText,
+                        borderRadius: '10px',
+                        fontWeight: '600',
+                        fontSize: '0.92rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        boxShadow: `0 4px 14px ${roleTheme.glow}`,
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                    }}>
                         📝 Lodge New Grievance
                     </Link>
                 </div>
 
                 {/* Stats Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-                    <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px' }}>
+                    <div className="glass-card stagger-in" style={{
+                        padding: '1.5rem',
+                        borderRadius: '14px',
+                        background: roleTheme.surfaceGradient,
+                        border: `1px solid ${roleTheme.cardBorder}`,
+                        borderLeft: `3px solid ${roleTheme.primary}`
+                    }}>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             TOTAL FILED
                         </div>
-                        <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>
-                            {grievances.length}
+                        <div className="mono-number" style={{ fontSize: '2.4rem', color: roleTheme.secondary, marginTop: '0.2rem' }}>
+                            {totalCount}
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
                             My complaint records

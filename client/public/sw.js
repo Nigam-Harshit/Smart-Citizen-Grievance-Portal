@@ -1,4 +1,5 @@
 const CACHE_NAME = 'smart-citizen-pwa-v1';
+const CACHE_NAME = 'smart-citizen-pwa-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -45,6 +46,36 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-First for HTML navigation requests
+  // Guarantees returning users always receive the latest index.html and fresh hashed bundle references when online,
+  // while seamlessly falling back to cached index.html when offline.
+  const isHtmlNavigation = event.request.mode === 'navigate' ||
+    (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) ||
+    url.pathname === '/' ||
+    url.pathname === '/index.html';
+
+  if (isHtmlNavigation) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            }).catch(() => {});
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cached) => {
+            return cached || caches.match('/index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache-First with network fallback for other static assets (images, icons, manifest, etc.)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {

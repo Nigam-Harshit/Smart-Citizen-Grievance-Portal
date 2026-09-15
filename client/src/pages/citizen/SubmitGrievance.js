@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Topbar from '../../components/Topbar';
 import API from '../../utils/api';
@@ -15,7 +15,58 @@ const SubmitGrievance = () => {
     const [location, setLocation] = useState('');
     const [priority, setPriority] = useState('Medium');
     const [phone, setPhone] = useState(user?.phone || '');
+    const [photo, setPhoto] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const [fileError, setFileError] = useState('');
     const [loading, setLoading] = useState(false);
+    const fileInputRef = useRef(null);
+
+    // Clean up temporary object URL on unmount or replacement
+    useEffect(() => {
+        return () => {
+            if (previewUrl) {
+                URL.revokeObjectURL(previewUrl);
+            }
+        };
+    }, [previewUrl]);
+
+    const handleFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate format
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(file.type.toLowerCase())) {
+            setFileError('Invalid format. Only JPEG, PNG, and WebP images are allowed.');
+            return;
+        }
+
+        // Validate size: 8 MB ceiling
+        if (file.size > 8 * 1024 * 1024) {
+            setFileError(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds the 8 MB maximum limit.`);
+            return;
+        }
+
+        setFileError('');
+        setPhoto(file);
+
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+        setPreviewUrl(URL.createObjectURL(file));
+    };
+
+    const handleRemovePhoto = () => {
+        setPhoto(null);
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(null);
+        }
+        setFileError('');
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -36,15 +87,31 @@ const SubmitGrievance = () => {
                 await API.put('/api/auth/profile', { phone });
             }
 
-            const { data } = await API.post('/api/grievances', {
-                title,
-                description,
-                category,
-                location,
-                priority
-            });
+            let responseData;
+            if (photo) {
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('description', description);
+                formData.append('category', category);
+                formData.append('location', location);
+                formData.append('priority', priority);
+                formData.append('photo', photo);
+
+                const res = await API.post('/api/grievances', formData);
+                responseData = res.data;
+            } else {
+                const res = await API.post('/api/grievances', {
+                    title,
+                    description,
+                    category,
+                    location,
+                    priority
+                });
+                responseData = res.data;
+            }
+
             alert('Grievance lodged successfully!');
-            navigate(`/citizen/grievance/${data._id}`);
+            navigate(`/citizen/grievance/${responseData._id}`);
         } catch (err) {
             console.error('Error submitting grievance:', err);
             alert(err.response?.data?.message || 'Error submitting grievance');
@@ -146,6 +213,109 @@ const SubmitGrievance = () => {
                                     rows="5"
                                     required
                                 />
+                            </div>
+
+                            {/* Photographic Evidence Attachment (Optional) */}
+                            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span>Photographic Evidence <span style={{ color: 'var(--text-muted)', fontWeight: 'normal', fontSize: '0.82rem' }}>(Optional)</span></span>
+                                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>JPEG, PNG, WebP • Max 8 MB</span>
+                                </label>
+
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onChange={handleFileChange}
+                                    style={{ display: 'none' }}
+                                    aria-label="Upload photographic evidence"
+                                />
+
+                                {fileError && (
+                                    <div style={{ padding: '0.8rem 1rem', background: 'rgba(192, 67, 59, 0.15)', border: '1px solid var(--signal-red)', borderRadius: '8px', marginBottom: '1rem', color: 'var(--signal-red)', fontSize: '0.85rem' }}>
+                                        ⚠️ {fileError}
+                                    </div>
+                                )}
+
+                                {!photo ? (
+                                    <div
+                                        onClick={() => fileInputRef.current?.click()}
+                                        style={{
+                                            border: '2px dashed var(--glass-border)',
+                                            borderRadius: '12px',
+                                            padding: '1.8rem',
+                                            textAlign: 'center',
+                                            cursor: 'pointer',
+                                            background: 'rgba(16, 24, 38, 0.4)',
+                                            transition: 'border-color 0.2s ease'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-amber)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--glass-border)'}
+                                    >
+                                        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📸</div>
+                                        <div style={{ fontWeight: '500', color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
+                                            Click to attach on-site photo evidence
+                                        </div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                            Provides clear visual proof for zonal field inspection teams
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{
+                                        border: '1px solid var(--accent-amber)',
+                                        borderRadius: '12px',
+                                        padding: '1rem',
+                                        background: 'rgba(201, 150, 44, 0.08)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '1.2rem'
+                                    }}>
+                                        <img
+                                            src={previewUrl}
+                                            alt="Evidence Preview"
+                                            style={{
+                                                width: '90px',
+                                                height: '90px',
+                                                objectFit: 'cover',
+                                                borderRadius: '8px',
+                                                border: '1px solid var(--glass-border)'
+                                            }}
+                                        />
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '0.9rem', marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '320px' }}>
+                                                {photo.name}
+                                            </div>
+                                            <div className="mono-data" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+                                                {(photo.size / (1024 * 1024)).toFixed(2)} MB • {photo.type}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '0.8rem' }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="btn-municipal-glass"
+                                                    style={{ padding: '0.3rem 0.8rem', fontSize: '0.78rem' }}
+                                                >
+                                                    Change Photo
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRemovePhoto}
+                                                    style={{
+                                                        padding: '0.3rem 0.8rem',
+                                                        fontSize: '0.78rem',
+                                                        background: 'rgba(192, 67, 59, 0.15)',
+                                                        border: '1px solid var(--signal-red)',
+                                                        color: 'var(--signal-red)',
+                                                        borderRadius: '6px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', justifyContent: 'flex-end' }}>

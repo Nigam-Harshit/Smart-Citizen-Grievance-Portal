@@ -29,7 +29,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Grievance Portal to access your photos to attach evidence to municipal complaints.",
+          "cameraPermission": "Allow Grievance Portal to capture photos to attach evidence to municipal complaints."
+        }
+      ]
     ]
   }
 }

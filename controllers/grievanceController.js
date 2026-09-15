@@ -6,6 +6,8 @@ const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 const { logAudit } = require('./auditController');
 const { getCanonicalCitizen, getAllAssociatedIds } = require('../utils/identityHelper');
+const imageProcessor = require('../utils/imageProcessor');
+const storageService = require('../utils/storageService');
 
 const getGrievances = async (req, res) => {
     try {
@@ -111,8 +113,10 @@ const getGrievanceById = async (req, res) => {
 };
 
 const createGrievance = async (req, res) => {
+    let uploadedStorageKey = null;
+    let resolvedCitizenId = null;
     try {
-        let { citizenId, title, description, category, location, priority, citizenName, assignedTo } = req.body;
+        let { citizenId, title, description, category, location, priority, citizenName, assignedTo, idempotencyKey } = req.body;
 
         if (!title || !description || !category || !location) {
             return res.status(400).json({ message: 'Please provide title, description, category, and location' });
@@ -138,7 +142,44 @@ const createGrievance = async (req, res) => {
         }
 
         citizenId = citizenDoc._id;
+        resolvedCitizenId = citizenDoc._id;
         citizenName = citizenDoc.name;
+
+        // Idempotency check: if already submitted, return existing record
+        if (idempotencyKey) {
+            const existing = await Grievance.findOne({ citizenId, idempotencyKey });
+            if (existing) {
+                return res.status(200).json(existing);
+            }
+        }
+
+        // Handle optional photo upload if present
+        let attachmentData = null;
+        if (req.file) {
+            if (process.env.PHOTO_UPLOAD_ENABLED !== 'true') {
+                return res.status(400).json({ message: 'Photographic evidence uploads are currently disabled' });
+            }
+
+            if (!storageService.isStorageConfigured()) {
+                return res.status(503).json({ message: 'Object storage service is temporarily unavailable' });
+            }
+
+            const processed = await imageProcessor.validateAndProcessImage(req.file.buffer);
+            const storageKey = storageService.generateStorageKey();
+
+            await storageService.uploadToR2(storageKey, processed.buffer, processed.mimeType);
+            uploadedStorageKey = storageKey;
+
+            attachmentData = {
+                storageKey,
+                originalName: req.file.originalname || 'photo.jpg',
+                mimeType: processed.mimeType,
+                size: processed.size,
+                dimensions: processed.dimensions,
+                checksum: processed.checksum,
+                uploadedAt: new Date()
+            };
+        }
 
         // Calculate SLA deadline based on priority
         const now = new Date();
@@ -173,19 +214,23 @@ const createGrievance = async (req, res) => {
             status: 'Open',
             assignedTo: assignedTo || null,
             officerName,
-            deadline
+            deadline,
+            idempotencyKey: idempotencyKey || undefined,
+            attachment: attachmentData || undefined
         });
 
         // Update citizen activity
-        citizenDoc.lastActivity = Date.now();
-        await citizenDoc.save();
+        if (citizenDoc.save) {
+            citizenDoc.lastActivity = Date.now();
+            await citizenDoc.save();
+        }
 
         // Create initial update timeline entry
         await GrievanceUpdate.create({
             grievanceId: grievance._id,
             userId: req.user ? req.user._id : citizenId,
             type: 'Citizen Response',
-            notes: `Grievance submitted under ${category} at ${location}. Priority set to ${prio}.`,
+            notes: `Grievance submitted under ${category} at ${location}. Priority set to ${prio}.${attachmentData ? ' Photographic evidence attached.' : ''}`,
             statusChange: 'Open'
         });
 
@@ -193,8 +238,29 @@ const createGrievance = async (req, res) => {
 
         res.status(201).json(grievance);
     } catch (error) {
+        // Compensating transaction: purge R2 object if database save failed
+        if (uploadedStorageKey) {
+            try {
+                await storageService.deleteFromR2(uploadedStorageKey);
+                console.warn(`[Compensating Transaction] Purged orphaned R2 asset: ${uploadedStorageKey}`);
+            } catch (cleanupErr) {
+                console.error(`[CRITICAL] Failed to purge orphaned R2 asset ${uploadedStorageKey}:`, cleanupErr.message);
+            }
+        }
+
+        // Handle duplicate key error on idempotencyKey gracefully
+        if (error.code === 11000 && req.body && req.body.idempotencyKey) {
+            try {
+                const targetCitizenId = resolvedCitizenId || req.body.citizenId;
+                if (targetCitizenId) {
+                    const existing = await Grievance.findOne({ citizenId: targetCitizenId, idempotencyKey: req.body.idempotencyKey });
+                    if (existing) return res.status(200).json(existing);
+                }
+            } catch (_) {}
+        }
+
         console.error('createGrievance error:', error);
-        if (error.name === 'ValidationError') {
+        if (error.name === 'ValidationError' || error.code === 'MALFORMED_IMAGE' || error.code === 'FILE_TOO_LARGE' || error.code === 'PIXEL_LIMIT_EXCEEDED' || error.code === 'UNSUPPORTED_FORMAT') {
             return res.status(400).json({ message: error.message });
         }
         res.status(500).json({ message: error.message });

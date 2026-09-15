@@ -15,9 +15,14 @@ export const requestAPI = async <T = any>(
 ): Promise<ApiResponse<T>> => {
   const token = await getSecureToken();
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
+  const headers: Record<string, string> = {};
+
+  // For FormData, let the runtime/fetch generate multipart boundary automatically
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -30,7 +35,7 @@ export const requestAPI = async <T = any>(
     };
 
     if (body && (method === 'POST' || method === 'PUT')) {
-      config.body = JSON.stringify(body);
+      config.body = isFormData ? body : JSON.stringify(body);
     }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);

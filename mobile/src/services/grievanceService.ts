@@ -6,6 +6,8 @@ export interface CreateGrievanceParams {
   priority: string;
   location: string;
   description: string;
+  photoUri?: string;
+  idempotencyKey?: string;
 }
 
 export const fetchDutyQueue = async () => {
@@ -25,6 +27,33 @@ export const fetchGrievanceById = async (id: string) => {
 };
 
 export const postGrievance = async (params: CreateGrievanceParams) => {
+  if (params.photoUri) {
+    const formData = new FormData();
+    formData.append('title', params.title);
+    formData.append('category', params.category);
+    formData.append('priority', params.priority);
+    formData.append('location', params.location);
+    formData.append('description', params.description);
+    if (params.idempotencyKey) {
+      formData.append('idempotencyKey', params.idempotencyKey);
+    }
+
+    const filename = params.photoUri.split('/').pop() || 'photo.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const ext = match ? match[1].toLowerCase() : 'jpg';
+    let mimeType = 'image/jpeg';
+    if (ext === 'png') mimeType = 'image/png';
+    else if (ext === 'webp') mimeType = 'image/webp';
+
+    formData.append('photo', {
+      uri: params.photoUri,
+      name: filename,
+      type: mimeType,
+    } as any);
+
+    return await requestAPI('/api/grievances', 'POST', formData);
+  }
+
   return await requestAPI('/api/grievances', 'POST', params);
 };
 

@@ -9,10 +9,11 @@ const {
     getInsights
 } = require('../controllers/grievanceController');
 const { protect, adminOrManager } = require('../middleware/authMiddleware');
+const { uploadSinglePhoto } = require('../middleware/uploadMiddleware');
 
 router.route('/')
     .get(protect, getGrievances)
-    .post(protect, createGrievance);
+    .post(protect, uploadSinglePhoto, createGrievance);
 
 router.post('/insights/generate', protect, adminOrManager, generateInsights);
 router.get('/insights', protect, adminOrManager, getInsights);

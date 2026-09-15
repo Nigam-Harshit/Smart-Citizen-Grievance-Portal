@@ -36,6 +36,7 @@ app.use('/api/grievances', require('./routes/grievanceRoutes'));
 app.use('/api/grievance-updates', require('./routes/grievanceUpdateRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/audit', require('./routes/auditRoutes'));
+app.use('/api/admin-maintenance', require('./routes/maintenanceRoutes'));
 
 // Backward-compatible route aliases
 app.use('/api/customers', require('./routes/citizenRoutes'));

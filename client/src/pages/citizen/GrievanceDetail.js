@@ -297,7 +297,10 @@ const GrievanceDetail = () => {
                                                 <img
                                                     src={photoUrl}
                                                     alt={`On-site photographic evidence for ${grievance.title}`}
-                                                    onError={() => setPhotoError('Evidence photo currently unavailable')}
+                                                    onError={() => {
+                                                        setPhotoError('Evidence photo currently unavailable or expired');
+                                                        setPhotoUrl(null);
+                                                    }}
                                                     style={{
                                                         width: '100%',
                                                         maxHeight: '260px',
@@ -443,6 +446,11 @@ const GrievanceDetail = () => {
                         <img
                             src={photoUrl}
                             alt="Full resolution evidence"
+                            onError={() => {
+                                setPhotoError('Evidence photo currently unavailable or expired');
+                                setPhotoUrl(null);
+                                setLightboxOpen(false);
+                            }}
                             style={{
                                 maxWidth: '100%',
                                 maxHeight: '85vh',

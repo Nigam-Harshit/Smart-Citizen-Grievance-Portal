@@ -10,6 +10,10 @@ interface SubmitGrievanceScreenProps {
   onNavigate: (screen: any, params?: any) => void;
 }
 
+const generateIdempotencyKey = () => {
+  return 'idem-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15);
+};
+
 export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ user, onNavigate }) => {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Sanitation');
@@ -19,6 +23,7 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
   const [phone, setPhone] = useState(user?.phone || '');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => generateIdempotencyKey());
 
   const categories = ['Sanitation', 'Water Supply', 'Roads & Traffic', 'Electricity', 'Public Safety', 'Other'];
   const priorities = ['Low', 'Medium', 'High', 'Critical'];
@@ -103,6 +108,7 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
         location,
         description,
         photoUri: photoUri || undefined,
+        idempotencyKey,
       });
 
       setLoading(false);
@@ -113,6 +119,7 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
       }
 
       setPhotoUri(null);
+      setIdempotencyKey(generateIdempotencyKey());
       Alert.alert('Grievance Lodged', `Your complaint #${res.data?._id?.substring(18) || ''} has been lodged successfully!`);
       onNavigate('MyGrievances');
     } catch (err: any) {

@@ -5,6 +5,13 @@ import API from '../../utils/api';
 import AuthContext from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
+const generateIdempotencyKey = () => {
+    if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+        return window.crypto.randomUUID();
+    }
+    return 'idem-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15);
+};
+
 const SubmitGrievance = () => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
@@ -19,6 +26,7 @@ const SubmitGrievance = () => {
     const [previewUrl, setPreviewUrl] = useState(null);
     const [fileError, setFileError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [idempotencyKey, setIdempotencyKey] = useState(() => generateIdempotencyKey());
     const fileInputRef = useRef(null);
 
     // Clean up temporary object URL on unmount or replacement
@@ -95,6 +103,7 @@ const SubmitGrievance = () => {
                 formData.append('category', category);
                 formData.append('location', location);
                 formData.append('priority', priority);
+                formData.append('idempotencyKey', idempotencyKey);
                 formData.append('photo', photo);
 
                 const res = await API.post('/api/grievances', formData);
@@ -105,12 +114,14 @@ const SubmitGrievance = () => {
                     description,
                     category,
                     location,
-                    priority
+                    priority,
+                    idempotencyKey
                 });
                 responseData = res.data;
             }
 
             alert('Grievance lodged successfully!');
+            setIdempotencyKey(generateIdempotencyKey());
             navigate(`/citizen/grievance/${responseData._id}`);
         } catch (err) {
             console.error('Error submitting grievance:', err);

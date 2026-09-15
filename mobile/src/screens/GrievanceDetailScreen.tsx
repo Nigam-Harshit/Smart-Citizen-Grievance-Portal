@@ -336,7 +336,10 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
                       style={styles.evidenceImage}
                       resizeMode="cover"
                       accessibilityLabel={`Photographic evidence for ${grievance.title}`}
-                      onError={() => setPhotoError('Evidence photo currently unavailable')}
+                      onError={() => {
+                        setPhotoError('Evidence photo currently unavailable or expired');
+                        setPhotoUrl(null);
+                      }}
                     />
                     {photoMetadata && (
                       <View style={styles.evidenceMetaRow}>

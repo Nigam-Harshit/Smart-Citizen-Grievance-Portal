@@ -4,7 +4,7 @@ const Insight = require('../models/Insight');
 const GrievanceUpdate = require('../models/GrievanceUpdate');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
-const { logAudit } = require('./auditController');
+const auditController = require('./auditController');
 const identityHelper = require('../utils/identityHelper');
 const imageProcessor = require('../utils/imageProcessor');
 const storageService = require('../utils/storageService');
@@ -293,7 +293,7 @@ const createGrievance = async (req, res) => {
             statusChange: 'Open'
         });
 
-        await logAudit(req.user ? req.user._id : citizenId, 'Create Grievance', `Created grievance "${title}" for citizen ${citizenName}.`);
+        await auditController.logAudit(req.user ? req.user._id : citizenId, 'Create Grievance', `Created grievance "${title}" for citizen ${citizenName}.`);
 
         res.status(201).json(grievance);
     } catch (error) {
@@ -303,7 +303,13 @@ const createGrievance = async (req, res) => {
                 await storageService.deleteFromR2(uploadedStorageKey);
                 console.warn(`[Compensating Transaction] Purged orphaned R2 asset: ${uploadedStorageKey}`);
             } catch (cleanupErr) {
-                console.error(`[CRITICAL] Failed to purge orphaned R2 asset ${uploadedStorageKey}:`, cleanupErr.message);
+                console.error(`[CRITICAL] Failed to purge orphaned R2 asset ${uploadedStorageKey}: ${cleanupErr.message}`);
+                console.error(`[ORPHAN_RECONCILIATION_REQUIRED] ${JSON.stringify({
+                    storageKey: uploadedStorageKey,
+                    citizenId: resolvedCitizenId || req.body?.citizenId || null,
+                    timestamp: new Date().toISOString(),
+                    error: cleanupErr.message
+                })}`);
             }
         }
 
@@ -315,14 +321,16 @@ const createGrievance = async (req, res) => {
                     const existing = await Grievance.findOne({ citizenId: targetCitizenId, idempotencyKey: req.body.idempotencyKey });
                     if (existing) return res.status(200).json(existing);
                 }
-            } catch (_) {}
+            } catch (findErr) {
+                console.error('Failed to query existing idempotent grievance:', findErr.message);
+            }
         }
 
         console.error('createGrievance error:', error);
         if (error.name === 'ValidationError' || error.code === 'MALFORMED_IMAGE' || error.code === 'FILE_TOO_LARGE' || error.code === 'PIXEL_LIMIT_EXCEEDED' || error.code === 'UNSUPPORTED_FORMAT') {
             return res.status(400).json({ message: error.message });
         }
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Failed to submit grievance. Please try again.' });
     }
 };
 

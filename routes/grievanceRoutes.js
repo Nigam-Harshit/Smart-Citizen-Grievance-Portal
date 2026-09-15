@@ -11,11 +11,11 @@ const {
 } = require('../controllers/grievanceController');
 const { protect, adminOrManager } = require('../middleware/authMiddleware');
 const { uploadSinglePhoto } = require('../middleware/uploadMiddleware');
-const { photoAccessLimiter } = require('../middleware/rateLimiter');
+const { photoAccessLimiter, createGrievanceLimiter } = require('../middleware/rateLimiter');
 
 router.route('/')
     .get(protect, getGrievances)
-    .post(protect, uploadSinglePhoto, createGrievance);
+    .post(protect, createGrievanceLimiter, uploadSinglePhoto, createGrievance);
 
 router.post('/insights/generate', protect, adminOrManager, generateInsights);
 router.get('/insights', protect, adminOrManager, getInsights);

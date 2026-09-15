@@ -15,6 +15,23 @@ const photoAccessLimiter = rateLimit({
     }
 });
 
+/**
+ * Rate limiter for grievance submissions (POST /api/grievances).
+ * Caps submissions per IP to prevent spamming, DoS attacks,
+ * and memory exhaustion from multipart file uploads and Sharp image processing.
+ */
+const createGrievanceLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 60, // Limit each IP to 60 grievance submissions per 15 minutes
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: () => process.env.NODE_ENV === 'test',
+    message: {
+        message: 'Too many grievance submissions from this IP. Please try again after 15 minutes.'
+    }
+});
+
 module.exports = {
-    photoAccessLimiter
+    photoAccessLimiter,
+    createGrievanceLimiter
 };

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import {
   fetchGrievanceById,
+  fetchGrievancePhoto,
   fetchTimelineUpdates,
   postTimelineUpdate,
   updateGrievanceStatus,
@@ -35,11 +36,45 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
   const [assigning, setAssigning] = useState<boolean>(false);
 
+  // Photographic Evidence State
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoLoading, setPhotoLoading] = useState<boolean>(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoMetadata, setPhotoMetadata] = useState<any | null>(null);
+
   useEffect(() => {
     if (grievanceId) {
       loadGrievanceDetails();
     }
   }, [grievanceId]);
+
+  const loadPhoto = async (id: string) => {
+    setPhotoLoading(true);
+    setPhotoError(null);
+    try {
+      const res = await fetchGrievancePhoto(id);
+      if (res.data && res.data.photoUrl) {
+        setPhotoUrl(res.data.photoUrl);
+        setPhotoMetadata(res.data.attachment || null);
+      } else {
+        setPhotoError(res.error || 'Evidence photo unavailable');
+      }
+    } catch (err: any) {
+      setPhotoError(err.message || 'Evidence photo unavailable');
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (grievanceId && grievance?.attachment) {
+      loadPhoto(grievanceId);
+    } else {
+      setPhotoUrl(null);
+      setPhotoError(null);
+      setPhotoMetadata(null);
+    }
+  }, [grievanceId, grievance?.attachment]);
 
   const isOfficerRole = user?.role === 'officer' || user?.role === 'field_officer';
   const isManagerRole = user?.role === 'manager';
@@ -264,6 +299,62 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
 
             <Text style={styles.sectionHeader}>Full Problem Description:</Text>
             <Text style={styles.descriptionText}>{grievance.description}</Text>
+
+            {/* Photographic Evidence Attachment */}
+            {grievance.attachment && (
+              <View style={styles.evidenceCardContainer}>
+                <View style={styles.evidenceHeaderRow}>
+                  <Text style={styles.evidenceSectionHeader}>📸 Photographic Evidence</Text>
+                  <View style={styles.verifiedBadge}>
+                    <Text style={styles.verifiedBadgeText}>🔒 Verified</Text>
+                  </View>
+                </View>
+
+                {photoLoading && (
+                  <View style={styles.evidenceLoadingBox}>
+                    <ActivityIndicator size="small" color="#C9962C" />
+                    <Text style={styles.evidenceLoadingText}>Retrieving secure evidence photo...</Text>
+                  </View>
+                )}
+
+                {photoError && !photoLoading && (
+                  <View style={styles.evidenceErrorBox}>
+                    <Text style={styles.evidenceErrorText}>⚠️ {photoError}</Text>
+                    <TouchableOpacity
+                      style={styles.evidenceRetryBtn}
+                      onPress={() => grievanceId && loadPhoto(grievanceId)}
+                    >
+                      <Text style={styles.evidenceRetryBtnText}>↻ Retry Loading Photo</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {photoUrl && !photoLoading && (
+                  <View style={styles.evidenceImageBox}>
+                    <Image
+                      source={{ uri: photoUrl }}
+                      style={styles.evidenceImage}
+                      resizeMode="cover"
+                      accessibilityLabel={`Photographic evidence for ${grievance.title}`}
+                      onError={() => setPhotoError('Evidence photo currently unavailable')}
+                    />
+                    {photoMetadata && (
+                      <View style={styles.evidenceMetaRow}>
+                        <Text style={styles.evidenceFilename} numberOfLines={1} ellipsizeMode="middle">
+                          {photoMetadata.originalName || 'evidence.jpg'}
+                        </Text>
+                        {photoMetadata.size && (
+                          <Text style={styles.evidenceFileSize}>
+                            {(photoMetadata.size / (1024 * 1024)).toFixed(2)} MB
+                            {photoMetadata.dimensions?.width ? ` • ${photoMetadata.dimensions.width}×${photoMetadata.dimensions.height}` : ''}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Officer Action Card (Only visible to assigned officer) */}
@@ -838,5 +929,109 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 12,
+  },
+  evidenceCardContainer: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(203, 213, 225, 0.1)',
+  },
+  evidenceHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  evidenceSectionHeader: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  verifiedBadge: {
+    backgroundColor: 'rgba(201, 150, 44, 0.15)',
+    borderColor: '#C9962C',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  verifiedBadgeText: {
+    color: '#C9962C',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  evidenceLoadingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(203, 213, 225, 0.1)',
+  },
+  evidenceLoadingText: {
+    color: '#94A3B8',
+    fontSize: 12,
+  },
+  evidenceErrorBox: {
+    padding: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  evidenceErrorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  evidenceRetryBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(201, 150, 44, 0.2)',
+    borderColor: '#C9962C',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  evidenceRetryBtnText: {
+    color: '#C9962C',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  evidenceImageBox: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 150, 44, 0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+  },
+  evidenceImage: {
+    width: '100%',
+    height: 220,
+    borderRadius: 8,
+  },
+  evidenceMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+  },
+  evidenceFilename: {
+    fontSize: 11,
+    color: '#F8FAFC',
+    flex: 1,
+    marginRight: 8,
+  },
+  evidenceFileSize: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontFamily: 'monospace',
   },
 });

@@ -26,6 +26,22 @@ export const fetchGrievanceById = async (id: string) => {
   return await requestAPI(`/api/grievances/${id}`, 'GET');
 };
 
+export interface GrievancePhotoResponse {
+  photoUrl: string;
+  expiresIn: number;
+  attachment?: {
+    originalName?: string;
+    mimeType?: string;
+    size?: number;
+    dimensions?: { width: number; height: number };
+    uploadedAt?: string;
+  };
+}
+
+export const fetchGrievancePhoto = async (id: string) => {
+  return await requestAPI<GrievancePhotoResponse>(`/api/grievances/${id}/photo`, 'GET');
+};
+
 export const postGrievance = async (params: CreateGrievanceParams) => {
   if (params.photoUri) {
     const formData = new FormData();

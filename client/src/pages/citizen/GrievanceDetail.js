@@ -12,6 +12,13 @@ const GrievanceDetail = () => {
     const [updates, setUpdates] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // Photographic Evidence State
+    const [photoUrl, setPhotoUrl] = useState(null);
+    const [photoLoading, setPhotoLoading] = useState(false);
+    const [photoError, setPhotoError] = useState(null);
+    const [photoMetadata, setPhotoMetadata] = useState(null);
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+
     // Timeline Post Form State
     const [newNote, setNewNote] = useState('');
     const [noteType, setNoteType] = useState('Citizen Response');
@@ -32,9 +39,36 @@ const GrievanceDetail = () => {
         }
     }, [id]);
 
+    const fetchPhoto = useCallback(async () => {
+        if (!id) return;
+        setPhotoLoading(true);
+        setPhotoError(null);
+        try {
+            const { data } = await API.get(`/api/grievances/${id}/photo`);
+            setPhotoUrl(data.photoUrl);
+            setPhotoMetadata(data.attachment);
+        } catch (err) {
+            console.error('Error fetching grievance photo:', err);
+            setPhotoError(err.response?.data?.message || 'Evidence photo currently unavailable');
+            setPhotoUrl(null);
+        } finally {
+            setPhotoLoading(false);
+        }
+    }, [id]);
+
     useEffect(() => {
         fetchDetails();
     }, [fetchDetails]);
+
+    useEffect(() => {
+        if (grievance?.attachment) {
+            fetchPhoto();
+        } else {
+            setPhotoUrl(null);
+            setPhotoMetadata(null);
+            setPhotoError(null);
+        }
+    }, [grievance?.attachment, fetchPhoto]);
 
     const handleAddUpdate = async (e) => {
         e.preventDefault();
@@ -220,6 +254,92 @@ const GrievanceDetail = () => {
                                     {isOverdue && <span style={{ marginLeft: '6px' }}>⚠️ OVERDUE BREACH</span>}
                                 </div>
                             </div>
+
+                            {/* Photographic Evidence Attachment Card */}
+                            {grievance.attachment && (
+                                <div style={{ marginTop: '0.8rem', paddingTop: '1.2rem', borderTop: '1px solid var(--glass-border)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                                        <label style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                                            PHOTOGRAPHIC EVIDENCE
+                                        </label>
+                                        <span className="mono-data" style={{ fontSize: '0.72rem', color: 'var(--accent-amber)' }}>
+                                            🔒 Verified Attachment
+                                        </span>
+                                    </div>
+
+                                    {photoLoading && (
+                                        <div style={{ padding: '1.5rem', textAlign: 'center', background: 'rgba(11, 18, 32, 0.4)', borderRadius: '10px', border: '1px solid var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                                            Retrieving secure evidence photo...
+                                        </div>
+                                    )}
+
+                                    {photoError && !photoLoading && (
+                                        <div style={{ padding: '1rem', background: 'rgba(192, 67, 59, 0.15)', border: '1px solid var(--signal-red)', borderRadius: '10px', color: 'var(--signal-red)', fontSize: '0.82rem' }}>
+                                            <div style={{ marginBottom: '0.5rem' }}>⚠️ {photoError}</div>
+                                            <button
+                                                type="button"
+                                                onClick={fetchPhoto}
+                                                className="btn-municipal-glass"
+                                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+                                            >
+                                                ↻ Retry Loading Photo
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {photoUrl && !photoLoading && (
+                                        <div style={{ background: 'rgba(11, 18, 32, 0.4)', borderRadius: '10px', padding: '0.8rem', border: '1px solid var(--glass-border)' }}>
+                                            <div
+                                                style={{ position: 'relative', overflow: 'hidden', borderRadius: '8px', cursor: 'pointer' }}
+                                                onClick={() => setLightboxOpen(true)}
+                                                title="Click to inspect full resolution"
+                                            >
+                                                <img
+                                                    src={photoUrl}
+                                                    alt={`On-site photographic evidence for ${grievance.title}`}
+                                                    onError={() => setPhotoError('Evidence photo currently unavailable')}
+                                                    style={{
+                                                        width: '100%',
+                                                        maxHeight: '260px',
+                                                        objectFit: 'cover',
+                                                        display: 'block',
+                                                        borderRadius: '8px',
+                                                        transition: 'transform 0.2s ease'
+                                                    }}
+                                                />
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    bottom: '8px',
+                                                    right: '8px',
+                                                    background: 'rgba(15, 23, 42, 0.85)',
+                                                    backdropFilter: 'blur(4px)',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.75rem',
+                                                    color: 'var(--text-primary)',
+                                                    border: '1px solid var(--glass-border)'
+                                                }}>
+                                                    🔍 Click to enlarge
+                                                </div>
+                                            </div>
+
+                                            {photoMetadata && (
+                                                <div style={{ marginTop: '0.6rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+                                                        {photoMetadata.originalName || 'evidence.jpg'}
+                                                    </span>
+                                                    {photoMetadata.size && (
+                                                        <span className="mono-data">
+                                                            {(photoMetadata.size / (1024 * 1024)).toFixed(2)} MB
+                                                            {photoMetadata.dimensions?.width && ` • ${photoMetadata.dimensions.width}×${photoMetadata.dimensions.height}`}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -297,6 +417,69 @@ const GrievanceDetail = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Evidence Photo Full Resolution Lightbox Modal */}
+            {lightboxOpen && photoUrl && (
+                <div
+                    onClick={() => setLightboxOpen(false)}
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.88)',
+                        backdropFilter: 'blur(6px)',
+                        zIndex: 9999,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: '2rem'
+                    }}
+                    role="dialog"
+                    aria-label="Enlarged evidence photo"
+                >
+                    <div style={{ position: 'relative', maxWidth: '92vw', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+                        <img
+                            src={photoUrl}
+                            alt="Full resolution evidence"
+                            style={{
+                                maxWidth: '100%',
+                                maxHeight: '85vh',
+                                objectFit: 'contain',
+                                borderRadius: '12px',
+                                border: '1px solid var(--accent-amber)',
+                                display: 'block'
+                            }}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setLightboxOpen(false)}
+                            aria-label="Close photo preview"
+                            style={{
+                                position: 'absolute',
+                                top: '-14px',
+                                right: '-14px',
+                                background: 'var(--accent-amber)',
+                                color: '#0F172A',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '30px',
+                                height: '30px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.5)'
+                            }}
+                        >
+                            ✕
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

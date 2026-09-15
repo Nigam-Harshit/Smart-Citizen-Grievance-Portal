@@ -39,6 +39,12 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
+  // Bypass service worker for cross-origin requests (e.g. Cloudflare R2 presigned URLs)
+  // Guarantees presigned URLs and private assets are never intercepted or cached by the service worker
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
   // Bypass service worker entirely for API requests (/api/*)
   // Ensures API calls receive genuine HTTP errors/network failures rather than index.html fallback
   if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {

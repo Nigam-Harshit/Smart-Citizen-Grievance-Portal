@@ -5,7 +5,7 @@ const GrievanceUpdate = require('../models/GrievanceUpdate');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 const { logAudit } = require('./auditController');
-const { getCanonicalCitizen, getAllAssociatedIds } = require('../utils/identityHelper');
+const identityHelper = require('../utils/identityHelper');
 const imageProcessor = require('../utils/imageProcessor');
 const storageService = require('../utils/storageService');
 
@@ -18,7 +18,7 @@ const getGrievances = async (req, res) => {
             const role = req.user.role;
             
             if (role === 'citizen') {
-                const associatedIds = await getAllAssociatedIds(req.user._id);
+                const associatedIds = await identityHelper.getAllAssociatedIds(req.user._id);
                 if (associatedIds.length > 0) {
                     query.citizenId = { $in: associatedIds };
                 } else {
@@ -89,7 +89,7 @@ const getGrievanceById = async (req, res) => {
         if (req.user) {
             const role = req.user.role;
             if (role === 'citizen') {
-                const associatedIds = await getAllAssociatedIds(req.user._id);
+                const associatedIds = await identityHelper.getAllAssociatedIds(req.user._id);
                 const grievanceCitizenIdStr = String(grievance.citizenId?._id || grievance.citizenId);
                 if (!associatedIds.includes(grievanceCitizenIdStr)) {
                     return res.status(403).json({ message: 'Access forbidden: You can only view your own submitted grievances' });
@@ -112,6 +112,65 @@ const getGrievanceById = async (req, res) => {
     }
 };
 
+const getGrievancePhoto = async (req, res) => {
+    try {
+        const grievance = await Grievance.findById(req.params.id);
+
+        if (!grievance) {
+            return res.status(404).json({ message: 'Grievance not found' });
+        }
+
+        // Server-side Scope & Role Authorization
+        if (req.user) {
+            const role = req.user.role;
+            if (role === 'citizen') {
+                const associatedIds = await identityHelper.getAllAssociatedIds(req.user._id);
+                const grievanceCitizenIdStr = String(grievance.citizenId?._id || grievance.citizenId);
+                if (!associatedIds.includes(grievanceCitizenIdStr)) {
+                    return res.status(403).json({ message: 'Access forbidden: You can only view photos of your own submitted grievances' });
+                }
+            } else if (role === 'officer' || role === 'field_officer') {
+                if (!grievance.assignedTo || String(grievance.assignedTo._id || grievance.assignedTo) !== String(req.user._id)) {
+                    return res.status(403).json({ message: 'Access forbidden: Grievance is not assigned to you' });
+                }
+            } else if (role === 'manager') {
+                if (req.user.scope && req.user.scope !== 'All' && grievance.category !== req.user.scope) {
+                    return res.status(403).json({ message: `Access forbidden: Grievance category (${grievance.category}) is outside your manager scope (${req.user.scope})` });
+                }
+            }
+            // admin has full access
+        }
+
+        // Verify that this grievance actually has an evidence photo attachment
+        if (!grievance.attachment || !grievance.attachment.storageKey) {
+            return res.status(404).json({ message: 'No photographic evidence attached to this grievance' });
+        }
+
+        // Verify that object storage service is configured
+        if (!storageService.isStorageConfigured()) {
+            return res.status(503).json({ message: 'Object storage service is temporarily unavailable' });
+        }
+
+        // Generate temporary presigned GET URL from the server-persisted storageKey
+        const { url, expiresIn } = await storageService.generatePresignedGetUrl(grievance.attachment.storageKey);
+
+        res.status(200).json({
+            photoUrl: url,
+            expiresIn,
+            attachment: {
+                originalName: grievance.attachment.originalName || 'evidence.jpg',
+                mimeType: grievance.attachment.mimeType || 'image/jpeg',
+                size: grievance.attachment.size,
+                dimensions: grievance.attachment.dimensions,
+                uploadedAt: grievance.attachment.uploadedAt
+            }
+        });
+    } catch (error) {
+        console.error('getGrievancePhoto error:', error.message);
+        res.status(500).json({ message: 'Evidence photo currently unavailable' });
+    }
+};
+
 const createGrievance = async (req, res) => {
     let uploadedStorageKey = null;
     let resolvedCitizenId = null;
@@ -124,14 +183,14 @@ const createGrievance = async (req, res) => {
 
         let citizenDoc = null;
         if (req.user && req.user.role === 'citizen') {
-            citizenDoc = await getCanonicalCitizen({
+            citizenDoc = await identityHelper.getCanonicalCitizen({
                 userId: req.user._id,
                 email: req.user.email,
                 name: req.user.name,
                 phone: req.user.phone
             });
         } else if (citizenId) {
-            citizenDoc = await getCanonicalCitizen({
+            citizenDoc = await identityHelper.getCanonicalCitizen({
                 citizenId,
                 name: citizenName
             });
@@ -487,6 +546,7 @@ const getInsights = async (req, res) => {
 module.exports = {
     getGrievances,
     getGrievanceById,
+    getGrievancePhoto,
     createGrievance,
     updateGrievance,
     generateInsights,

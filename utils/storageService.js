@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { v4: uuidv4 } = require('uuid');
 
@@ -151,11 +151,138 @@ const generatePresignedGetUrl = async (key, expiresInSeconds) => {
     }
 };
 
+/**
+ * Validates that an object key belongs strictly to the grievances namespace
+ * and contains no path traversal sequences or illegal characters.
+ * @param {string} key
+ * @returns {boolean}
+ */
+const isValidStorageKey = (key) => {
+    if (!key || typeof key !== 'string') return false;
+    if (!key.startsWith('grievances/')) return false;
+    if (key.includes('..') || key.includes('\\') || key.includes('\0')) return false;
+    return true;
+};
+
+/**
+ * Lists a single page of objects under the specified prefix.
+ * Supports pagination through continuationToken.
+ * @param {object} [options]
+ * @param {string} [options.prefix='grievances/']
+ * @param {string} [options.continuationToken]
+ * @param {number} [options.maxKeys=1000]
+ * @returns {Promise<{ objects: Array<{ key: string, size: number, lastModified: Date, etag: string }>, isTruncated: boolean, nextContinuationToken: string|null, keyCount: number }>}
+ */
+const listObjects = async ({ prefix = 'grievances/', continuationToken, maxKeys = 1000 } = {}) => {
+    if (!prefix || !prefix.startsWith('grievances/')) {
+        throw new Error('Listing restricted to grievances/ prefix');
+    }
+
+    const client = getS3Client();
+    const bucket = process.env.R2_BUCKET_NAME;
+
+    try {
+        const command = new ListObjectsV2Command({
+            Bucket: bucket,
+            Prefix: prefix,
+            ContinuationToken: continuationToken || undefined,
+            MaxKeys: Number(maxKeys) || 1000
+        });
+
+        const response = await client.send(command);
+        const contents = response.Contents || [];
+
+        const objects = contents
+            .filter(item => isValidStorageKey(item.Key))
+            .map(item => ({
+                key: item.Key,
+                size: item.Size,
+                lastModified: item.LastModified,
+                etag: item.ETag ? item.ETag.replace(/^"|"$/g, '') : undefined
+            }));
+
+        return {
+            objects,
+            isTruncated: Boolean(response.IsTruncated),
+            nextContinuationToken: response.NextContinuationToken || null,
+            keyCount: response.KeyCount || objects.length
+        };
+    } catch (error) {
+        console.error('R2 listObjects failure:', error.message);
+        const err = new Error('Failed to list objects from storage service');
+        err.code = 'R2_LIST_ERROR';
+        throw err;
+    }
+};
+
+/**
+ * Iteratively collects all objects under the grievances namespace across all pages.
+ * Handles ContinuationToken pagination until all records are retrieved.
+ * @param {object} [options]
+ * @param {string} [options.prefix='grievances/']
+ * @returns {Promise<Array<{ key: string, size: number, lastModified: Date, etag: string }>>}
+ */
+const listAllObjects = async ({ prefix = 'grievances/' } = {}) => {
+    const allObjects = [];
+    let continuationToken = undefined;
+    let isTruncated = true;
+
+    while (isTruncated) {
+        const page = await module.exports.listObjects({ prefix, continuationToken });
+        allObjects.push(...page.objects);
+        isTruncated = page.isTruncated;
+        continuationToken = page.nextContinuationToken;
+        if (!continuationToken) break;
+    }
+
+    return allObjects;
+};
+
+/**
+ * Checks whether an object exists in Cloudflare R2 without downloading the body.
+ * @param {string} key
+ * @returns {Promise<{ exists: boolean, size?: number, lastModified?: Date }>}
+ */
+const checkObjectExists = async (key) => {
+    if (!isValidStorageKey(key)) {
+        throw new Error('Invalid storage key provided for object check');
+    }
+
+    const client = getS3Client();
+    const bucket = process.env.R2_BUCKET_NAME;
+
+    try {
+        const command = new HeadObjectCommand({
+            Bucket: bucket,
+            Key: key
+        });
+        const response = await client.send(command);
+        return {
+            exists: true,
+            size: response.ContentLength,
+            lastModified: response.LastModified
+        };
+    } catch (error) {
+        if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404 || error.message?.includes('404')) {
+            return { exists: false };
+        }
+        console.error('R2 checkObjectExists failure for key:', key, error.message);
+        const err = new Error('Failed to verify object presence in storage');
+        err.code = 'R2_HEAD_ERROR';
+        throw err;
+    }
+};
+
 module.exports = {
     isStorageConfigured,
     getS3Client,
     generateStorageKey,
+    isValidStorageKey,
     uploadToR2,
     deleteFromR2,
-    generatePresignedGetUrl
+    generatePresignedGetUrl,
+    listObjects,
+    listAllObjects,
+    checkObjectExists
 };
+

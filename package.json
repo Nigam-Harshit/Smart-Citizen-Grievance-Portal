@@ -6,7 +6,9 @@
     "start": "node server.js",
     "server": "nodemon server.js",
     "client": "npm start --prefix client",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "reconcile": "node scripts/reconcileStorage.js",
+    "reconcile:dry": "node scripts/reconcileStorage.js --dry-run"
   },
   "keywords": [],
   "author": "",

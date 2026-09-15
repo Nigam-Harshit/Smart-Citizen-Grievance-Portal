@@ -373,5 +373,26 @@ router.post('/cleanup-and-seed', async (req, res) => {
     }
 });
 
+// 4. Storage Consistency & Orphan Reconciliation endpoint
+const { reconcileStorage } = require('../services/reconciliationService');
+router.post('/reconcile-storage', async (req, res) => {
+    try {
+        const dryRun = req.body.dryRun !== false; // Default: true (safe dry-run)
+        const safetyWindowHours = Number(req.body.safetyWindowHours);
+        const options = { dryRun };
+
+        if (!isNaN(safetyWindowHours) && safetyWindowHours >= 0) {
+            options.safetyWindowMs = safetyWindowHours * 60 * 60 * 1000;
+        }
+
+        const report = await reconcileStorage(options);
+        res.status(200).json(report);
+    } catch (err) {
+        console.error('Maintenance reconcile-storage error:', err);
+        res.status(500).json({ error: 'Storage reconciliation failed: ' + err.message });
+    }
+});
+
 module.exports = router;
+
 

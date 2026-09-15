@@ -35,10 +35,8 @@ const connectDB = async () => {
     }
   }
 
-  // Seeding logic & identity consolidation:
   // Seeding logic & identity consolidation & staff roster sync:
   try {
-    const { consolidateCitizenIdentities } = require('../utils/identityHelper');
     const { consolidateCitizenIdentities, syncSimpleStaffRoster } = require('../utils/identityHelper');
     const shouldSeed = isMemoryServer || process.env.SEED_DEMO_DATA === 'true';
     if (shouldSeed) {

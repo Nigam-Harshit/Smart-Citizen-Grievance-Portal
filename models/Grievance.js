@@ -55,9 +55,50 @@ const grievanceSchema = new mongoose.Schema({
   },
   resolvedAt: {
     type: Date
+  },
+  // V2.0.0 Optional Photographic Evidence Attachment Metadata
+  attachment: {
+    storageKey: {
+      type: String,
+      trim: true
+    },
+    originalName: {
+      type: String,
+      trim: true
+    },
+    mimeType: {
+      type: String,
+      default: 'image/jpeg'
+    },
+    size: {
+      type: Number // Normalized stored JPEG size in bytes
+    },
+    dimensions: {
+      width: { type: Number },
+      height: { type: Number }
+    },
+    checksum: {
+      type: String // SHA-256 hex checksum
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  // V2.0.0 Optional Client Idempotency Key
+  idempotencyKey: {
+    type: String,
+    trim: true,
+    sparse: true
   }
 }, {
   timestamps: true
 });
+
+// Sparse unique compound index to prevent duplicate submissions per citizen
+grievanceSchema.index({ citizenId: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
+
+// Sparse index on storage key for orphan reconciliation and rapid asset lookups
+grievanceSchema.index({ 'attachment.storageKey': 1 }, { sparse: true });
 
 module.exports = mongoose.model('Grievance', grievanceSchema);

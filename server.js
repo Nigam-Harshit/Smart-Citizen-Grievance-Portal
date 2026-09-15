@@ -42,6 +42,14 @@ app.use('/api/customers', require('./routes/citizenRoutes'));
 app.use('/api/reports', require('./routes/grievanceRoutes'));
 app.use('/api/interactions', require('./routes/grievanceUpdateRoutes'));
 
+// Lightweight health check endpoint for external monitoring & keep-alive
+app.get('/api/health', (req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        version: '1.0.2'
+    });
+});
+
 app.get('/', (req, res) => {
     res.send('Smart Citizen Grievance Management API is running and connected to MongoDB...');
 });

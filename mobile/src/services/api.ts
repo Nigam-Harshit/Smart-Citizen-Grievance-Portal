@@ -1,6 +1,6 @@
 import { getSecureToken } from './secureStore';
 
-export const API_BASE_URL = 'https://smart-citizen-grievance-portal.onrender.com';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://smart-citizen-grievance-portal.onrender.com';
 
 export interface ApiResponse<T = any> {
   status: number;

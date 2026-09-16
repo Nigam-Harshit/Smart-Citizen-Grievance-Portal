@@ -223,21 +223,34 @@ const listObjects = async ({ prefix = 'grievances/', continuationToken, maxKeys 
 /**
  * Iteratively collects all objects under the grievances namespace across all pages.
  * Handles ContinuationToken pagination until all records are retrieved.
+ * Iteratively collects objects under the grievances namespace across pages.
+ * Handles ContinuationToken pagination until all records are retrieved,
+ * or until optional maxObjects ceiling is reached.
  * @param {object} [options]
  * @param {string} [options.prefix='grievances/']
+ * @param {number} [options.maxObjects] - Optional ceiling on total objects to retrieve
+ * @param {number} [options.batchSize=1000] - Keys requested per page
  * @returns {Promise<Array<{ key: string, size: number, lastModified: Date, etag: string }>>}
  */
-const listAllObjects = async ({ prefix = 'grievances/' } = {}) => {
+const listAllObjects = async ({ prefix = 'grievances/', maxObjects, batchSize = 1000 } = {}) => {
     const allObjects = [];
     let continuationToken = undefined;
     let isTruncated = true;
 
     while (isTruncated) {
-        const page = await module.exports.listObjects({ prefix, continuationToken });
+        let pageLimit = batchSize;
+        if (Number.isFinite(maxObjects)) {
+            const remaining = maxObjects - allObjects.length;
+            if (remaining <= 0) break;
+            pageLimit = Math.min(batchSize, remaining);
+        }
+
+        const page = await module.exports.listObjects({ prefix, continuationToken, maxKeys: pageLimit });
         allObjects.push(...page.objects);
         isTruncated = page.isTruncated;
         continuationToken = page.nextContinuationToken;
         if (!continuationToken) break;
+        if (Number.isFinite(maxObjects) && allObjects.length >= maxObjects) break;
     }
 
     return allObjects;

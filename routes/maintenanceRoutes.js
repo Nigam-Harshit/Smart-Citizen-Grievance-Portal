@@ -431,6 +431,17 @@ router.post('/reconcile-storage', async (req, res) => {
             options.safetyWindowMs = hours * 60 * 60 * 1000;
         }
 
+        if (req.body && req.body.maxObjects !== undefined) {
+            const maxObj = Number(req.body.maxObjects);
+            if (Number.isInteger(maxObj) && maxObj > 0) {
+                options.maxObjects = maxObj;
+            }
+        }
+
+        if (req.body && Array.isArray(req.body.targetKeys)) {
+            options.targetKeys = req.body.targetKeys;
+        }
+
         const report = await reconcileStorage(options);
         res.status(200).json(report);
     } catch (err) {

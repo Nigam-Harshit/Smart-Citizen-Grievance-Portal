@@ -51,6 +51,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Bypass service worker for requests with authorization headers or presigned AWS/R2 signature parameters
+  // Guarantees authenticated requests and secure presigned evidence assets are never cached
+  if (
+    event.request.headers.has('authorization') ||
+    url.searchParams.has('X-Amz-Signature') ||
+    url.searchParams.has('X-Amz-Algorithm') ||
+    url.searchParams.has('X-Amz-Credential')
+  ) {
+    return;
+  }
+
   // Network-First for HTML navigation requests
   // Guarantees returning users always receive the latest index.html and fresh hashed bundle references when online,
   // while seamlessly falling back to cached index.html when offline.

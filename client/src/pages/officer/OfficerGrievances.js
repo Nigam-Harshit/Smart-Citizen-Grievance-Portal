@@ -96,6 +96,14 @@ const OfficerGrievances = () => {
                 <Link to={`/citizen/grievance/${item._id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.95rem', display: 'block', marginBottom: '0.4rem' }}>
                     {item.title}
                 </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.4rem' }}>
+                    <Link to={`/citizen/grievance/${item._id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.95rem' }}>
+                        {item.title}
+                    </Link>
+                    {item.attachment && (
+                        <span title="Photographic Evidence Attached" aria-label="Photographic Evidence Attached" style={{ fontSize: '0.85rem' }}>📸</span>
+                    )}
+                </div>
 
                 <p style={{ margin: '0 0 0.8rem 0', color: 'var(--text-muted)', fontSize: '0.82rem', lineHeight: '1.4' }}>
                     {item.description?.substring(0, 80)}...

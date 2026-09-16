@@ -172,6 +172,14 @@ const MasterGrievances = () => {
                                                 <Link to={`/citizen/grievance/${g._id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 'bold' }}>
                                                     {g.title}
                                                 </Link>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <Link to={`/citizen/grievance/${g._id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 'bold' }}>
+                                                        {g.title}
+                                                    </Link>
+                                                    {g.attachment && (
+                                                        <span title="Photographic Evidence Attached" aria-label="Photographic Evidence Attached" style={{ fontSize: '0.85rem' }}>📸</span>
+                                                    )}
+                                                </div>
                                                 <div className="mono-data" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                                                     #{g._id.substring(18)}
                                                 </div>

@@ -70,6 +70,17 @@ const GrievanceDetail = () => {
         }
     }, [grievance?.attachment, fetchPhoto]);
 
+    // Handle Escape key to dismiss full-resolution photo lightbox
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && lightboxOpen) {
+                setLightboxOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [lightboxOpen]);
+
     const handleAddUpdate = async (e) => {
         e.preventDefault();
         if (!newNote.trim()) return;
@@ -291,7 +302,17 @@ const GrievanceDetail = () => {
                                         <div style={{ background: 'rgba(11, 18, 32, 0.4)', borderRadius: '10px', padding: '0.8rem', border: '1px solid var(--glass-border)' }}>
                                             <div
                                                 style={{ position: 'relative', overflow: 'hidden', borderRadius: '8px', cursor: 'pointer' }}
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-label="Inspect evidence photo in full resolution"
+                                                style={{ position: 'relative', overflow: 'hidden', borderRadius: '8px', cursor: 'pointer', outline: 'none' }}
                                                 onClick={() => setLightboxOpen(true)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setLightboxOpen(true);
+                                                    }
+                                                }}
                                                 title="Click to inspect full resolution"
                                             >
                                                 <img
@@ -440,6 +461,7 @@ const GrievanceDetail = () => {
                         padding: '2rem'
                     }}
                     role="dialog"
+                    aria-modal="true"
                     aria-label="Enlarged evidence photo"
                 >
                     <div style={{ position: 'relative', maxWidth: '92vw', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>

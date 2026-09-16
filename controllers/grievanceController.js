@@ -371,6 +371,11 @@ const updateGrievance = async (req, res) => {
         delete updateData.attachment;
         delete updateData.idempotencyKey;
         delete updateData.citizenId;
+        if (updateData.$set && typeof updateData.$set === 'object') {
+            delete updateData.$set.attachment;
+            delete updateData.$set.idempotencyKey;
+            delete updateData.$set.citizenId;
+        }
 
         let assignedOfficerObj = null;
         if (updateData.assignedTo && updateData.assignedTo !== String(grievance.assignedTo)) {

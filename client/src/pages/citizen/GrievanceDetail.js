@@ -301,7 +301,6 @@ const GrievanceDetail = () => {
                                     {photoUrl && !photoLoading && (
                                         <div style={{ background: 'rgba(11, 18, 32, 0.4)', borderRadius: '10px', padding: '0.8rem', border: '1px solid var(--glass-border)' }}>
                                             <div
-                                                style={{ position: 'relative', overflow: 'hidden', borderRadius: '8px', cursor: 'pointer' }}
                                                 role="button"
                                                 tabIndex={0}
                                                 aria-label="Inspect evidence photo in full resolution"

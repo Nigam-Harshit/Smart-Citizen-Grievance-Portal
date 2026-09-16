@@ -240,6 +240,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
               >
                 <View style={styles.cardHeader}>
                   <Text style={styles.ticketTitle}>{item.title}</Text>
+                  <Text style={styles.ticketTitle}>{item.title}{item.attachment ? ' 📸' : ''}</Text>
                   <View style={[styles.prioBadge, item.priority === 'Critical' && styles.criticalBadge]}>
                     <Text style={styles.prioText}>{item.priority}</Text>
                   </View>

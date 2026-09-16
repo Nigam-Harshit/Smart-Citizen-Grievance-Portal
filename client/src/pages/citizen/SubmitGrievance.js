@@ -42,7 +42,6 @@ const SubmitGrievance = () => {
         };
     }, [previewUrl]);
 
-    const handleFileChange = (e) => {
     const handleFileChange = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -64,8 +63,6 @@ const SubmitGrievance = () => {
         setPhoto(file);
         setOptimizing(true);
 
-        if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
         try {
             // Apply client-side optimization if useful (downscales large images)
             const processedFile = await optimizeImageFile(file);
@@ -85,7 +82,6 @@ const SubmitGrievance = () => {
         } finally {
             setOptimizing(false);
         }
-        setPreviewUrl(URL.createObjectURL(file));
     };
 
     const handleRemovePhoto = () => {
@@ -102,8 +98,7 @@ const SubmitGrievance = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!title || !description || !category || !location) {
-            alert('Please fill out all required fields.');
+
         // Double-submit protection
         if (loading || optimizing) return;
 
@@ -111,6 +106,7 @@ const SubmitGrievance = () => {
 
         if (!title.trim() || !description.trim() || !category || !location.trim()) {
             setSubmitError('Please fill out all required fields.');
+            alert('Please fill out all required fields.');
             return;
         }
 
@@ -132,18 +128,14 @@ const SubmitGrievance = () => {
             let responseData;
             if (photo) {
                 const formData = new FormData();
-                formData.append('title', title);
-                formData.append('description', description);
                 formData.append('title', title.trim());
                 formData.append('description', description.trim());
                 formData.append('category', category);
-                formData.append('location', location);
                 formData.append('location', location.trim());
                 formData.append('priority', priority);
                 formData.append('idempotencyKey', idempotencyKey);
                 formData.append('photo', photo);
 
-                const res = await API.post('/api/grievances', formData);
                 const res = await API.post('/api/grievances', formData, {
                     onUploadProgress: (progressEvent) => {
                         if (progressEvent.total) {
@@ -155,12 +147,9 @@ const SubmitGrievance = () => {
                 responseData = res.data;
             } else {
                 const res = await API.post('/api/grievances', {
-                    title,
-                    description,
                     title: title.trim(),
                     description: description.trim(),
                     category,
-                    location,
                     location: location.trim(),
                     priority,
                     idempotencyKey
@@ -293,7 +282,6 @@ const SubmitGrievance = () => {
                                 />
 
                                 {fileError && (
-                                    <div style={{ padding: '0.8rem 1rem', background: 'rgba(192, 67, 59, 0.15)', border: '1px solid var(--signal-red)', borderRadius: '8px', marginBottom: '1rem', color: 'var(--signal-red)', fontSize: '0.85rem' }}>
                                     <div role="alert" aria-live="polite" style={{ padding: '0.8rem 1rem', background: 'rgba(192, 67, 59, 0.15)', border: '1px solid var(--signal-red)', borderRadius: '8px', marginBottom: '1rem', color: 'var(--signal-red)', fontSize: '0.85rem' }}>
                                         ⚠️ {fileError}
                                     </div>
@@ -324,7 +312,6 @@ const SubmitGrievance = () => {
                                             textAlign: 'center',
                                             cursor: 'pointer',
                                             background: 'rgba(16, 24, 38, 0.4)',
-                                            transition: 'border-color 0.2s ease'
                                             transition: 'all 0.2s ease',
                                             outline: 'none'
                                         }}
@@ -335,7 +322,6 @@ const SubmitGrievance = () => {
                                     >
                                         <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📸</div>
                                         <div style={{ fontWeight: '500', color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
-                                            Click to attach on-site photo evidence
                                             Click or press Enter to attach on-site photo evidence
                                         </div>
                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -441,12 +427,10 @@ const SubmitGrievance = () => {
 
                                 <button
                                     type="submit"
-                                    disabled={loading}
                                     disabled={loading || optimizing}
                                     className="btn-municipal"
                                     style={{ padding: '0.75rem 2rem', borderRadius: '8px' }}
                                 >
-                                    {loading ? 'Submitting Request...' : '📝 Lodge Official Grievance'}
                                     {loading
                                         ? (photo ? `Uploading... ${uploadProgress !== null ? uploadProgress + '%' : ''}` : 'Submitting Request...')
                                         : '📝 Lodge Official Grievance'}

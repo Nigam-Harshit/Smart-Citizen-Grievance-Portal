@@ -41,6 +41,7 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
   const [photoLoading, setPhotoLoading] = useState<boolean>(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoMetadata, setPhotoMetadata] = useState<any | null>(null);
+  const [lightboxVisible, setLightboxVisible] = useState<boolean>(false);
 
   useEffect(() => {
     if (grievanceId) {
@@ -341,6 +342,26 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
                         setPhotoUrl(null);
                       }}
                     />
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => setLightboxVisible(true)}
+                      accessibilityLabel="Tap to enlarge photographic evidence"
+                      accessibilityRole="button"
+                    >
+                      <Image
+                        source={{ uri: photoUrl }}
+                        style={styles.evidenceImage}
+                        resizeMode="cover"
+                        accessibilityLabel={`Photographic evidence for ${grievance.title}`}
+                        onError={() => {
+                          setPhotoError('Evidence photo currently unavailable or expired');
+                          setPhotoUrl(null);
+                        }}
+                      />
+                      <View style={styles.enlargeBadge}>
+                        <Text style={styles.enlargeBadgeText}>🔍 Tap to enlarge</Text>
+                      </View>
+                    </TouchableOpacity>
                     {photoMetadata && (
                       <View style={styles.evidenceMetaRow}>
                         <Text style={styles.evidenceFilename} numberOfLines={1} ellipsizeMode="middle">
@@ -587,6 +608,50 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
           </View>
         </View>
       </Modal>
+      {/* Evidence Photo Lightbox Modal */}
+      {photoUrl && (
+        <Modal
+          visible={lightboxVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setLightboxVisible(false)}
+        >
+          <View style={styles.lightboxBackdrop}>
+            <View style={styles.lightboxHeader}>
+              <Text style={styles.lightboxTitle} numberOfLines={1}>
+                {photoMetadata?.originalName || 'Photographic Evidence'}
+              </Text>
+              <TouchableOpacity
+                style={styles.lightboxCloseBtn}
+                onPress={() => setLightboxVisible(false)}
+                accessibilityLabel="Close enlarged photo"
+                accessibilityRole="button"
+              >
+                <Text style={styles.lightboxCloseText}>✕ Close</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.lightboxImageWrapper}>
+              <Image
+                source={{ uri: photoUrl }}
+                style={styles.lightboxImage}
+                resizeMode="contain"
+                accessibilityLabel={`Full screen photographic evidence for ${grievance?.title || 'complaint'}`}
+              />
+            </View>
+
+            {photoMetadata && (
+              <View style={styles.lightboxFooter}>
+                <Text style={styles.lightboxFooterText}>
+                  {photoMetadata.mimeType || 'image/jpeg'}
+                  {photoMetadata.size ? ` • ${(photoMetadata.size / (1024 * 1024)).toFixed(2)} MB` : ''}
+                  {photoMetadata.dimensions?.width ? ` • ${photoMetadata.dimensions.width}×${photoMetadata.dimensions.height}` : ''}
+                </Text>
+              </View>
+            )}
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };
@@ -1035,6 +1100,73 @@ const styles = StyleSheet.create({
   evidenceFileSize: {
     fontSize: 10,
     color: '#94A3B8',
+    fontFamily: 'monospace',
+  },
+  enlargeBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    borderColor: 'rgba(201, 150, 44, 0.6)',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  enlargeBadgeText: {
+    color: '#F8FAFC',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  lightboxBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingBottom: 30,
+  },
+  lightboxHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  lightboxTitle: {
+    color: '#F8FAFC',
+    fontSize: 15,
+    fontWeight: 'bold',
+    flex: 1,
+    marginRight: 12,
+  },
+  lightboxCloseBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  lightboxCloseText: {
+    color: '#F8FAFC',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  lightboxImageWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  lightboxImage: {
+    width: '100%',
+    height: '100%',
+  },
+  lightboxFooter: {
+    alignItems: 'center',
+    paddingTop: 12,
+  },
+  lightboxFooterText: {
+    color: '#94A3B8',
+    fontSize: 12,
     fontFamily: 'monospace',
   },
 });

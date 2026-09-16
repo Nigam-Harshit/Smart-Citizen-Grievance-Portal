@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert, Image, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import { postGrievance } from '../services/grievanceService';
@@ -21,20 +21,72 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState(user?.phone || '');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState<string>(() => generateIdempotencyKey());
 
   const categories = ['Sanitation', 'Water Supply', 'Roads & Traffic', 'Electricity', 'Public Safety', 'Other'];
   const priorities = ['Low', 'Medium', 'High', 'Critical'];
 
+  // Check for any pending image picker result on Android (recovery after activity destruction)
+  useEffect(() => {
+    const checkPendingResult = async () => {
+      try {
+        const pending = await ImagePicker.getPendingResultAsync();
+        if (pending && !('code' in pending) && !pending.canceled && pending.assets && pending.assets.length > 0) {
+          validateAndSetPhoto(pending.assets[0]);
+        }
+      } catch (err) {
+        console.warn('Pending image picker result check:', err);
+      }
+    };
+    checkPendingResult();
+  }, []);
+
+  const validateAndSetPhoto = (asset: ImagePicker.ImagePickerAsset) => {
+    // Validate size: 8 MB ceiling
+    if (asset.fileSize && asset.fileSize > 8 * 1024 * 1024) {
+      Alert.alert(
+        'File Too Large',
+        `The selected image (${(asset.fileSize / (1024 * 1024)).toFixed(2)} MB) exceeds the 8 MB maximum limit. Please select a smaller photo.`
+      );
+      return;
+    }
+
+    // Validate format: JPEG, PNG, WebP
+    const filename = asset.fileName || asset.uri.split('/').pop() || '';
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp'];
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+
+    if (asset.mimeType && !allowedMimes.includes(asset.mimeType.toLowerCase())) {
+      Alert.alert('Invalid Format', 'Only JPEG, PNG, and WebP images are allowed as evidence attachments.');
+      return;
+    }
+    if (ext && !allowedExts.includes(ext) && !asset.mimeType) {
+      Alert.alert('Invalid Format', 'Only JPEG, PNG, and WebP images are allowed as evidence attachments.');
+      return;
+    }
+
+    setSelectedPhoto(asset);
+    setSubmitError(null);
+  };
+
   const handleTakePhoto = async () => {
+    if (loading) return;
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
+      const permission = await ImagePicker.getCameraPermissionsAsync();
+      let granted = permission.granted;
+      if (!granted && permission.canAskAgain) {
+        const req = await ImagePicker.requestCameraPermissionsAsync();
+        granted = req.granted;
+      }
+
+      if (!granted) {
         Alert.alert(
           'Camera Permission Required',
-          'Please enable camera access in your device settings to capture on-site grievance evidence.'
+          'Camera access is required to capture on-site grievance evidence. Please enable camera access in device settings, or choose a photo from your gallery instead.'
         );
         return;
       }
@@ -47,7 +99,7 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setPhotoUri(result.assets[0].uri);
+        validateAndSetPhoto(result.assets[0]);
       }
     } catch (err: any) {
       Alert.alert('Camera Error', err.message || 'Failed to capture photo.');
@@ -55,12 +107,19 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
   };
 
   const handlePickGallery = async () => {
+    if (loading) return;
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
+      const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
+      let granted = permission.granted;
+      if (!granted && permission.canAskAgain) {
+        const req = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        granted = req.granted;
+      }
+
+      if (!granted) {
         Alert.alert(
           'Photo Library Permission Required',
-          'Please enable photo library access in your device settings to select evidence images.'
+          'Photo library access is required to select evidence photos. Please enable photo library access in your device settings.'
         );
         return;
       }
@@ -73,7 +132,7 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setPhotoUri(result.assets[0].uri);
+        validateAndSetPhoto(result.assets[0]);
       }
     } catch (err: any) {
       Alert.alert('Gallery Error', err.message || 'Failed to open photo library.');
@@ -81,11 +140,16 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
   };
 
   const handleRemovePhoto = () => {
-    setPhotoUri(null);
+    setSelectedPhoto(null);
   };
 
   const handleSubmit = async () => {
-    if (!title || !location || !description) {
+    // Double-submit protection
+    if (loading) return;
+
+    setSubmitError(null);
+
+    if (!title.trim() || !location.trim() || !description.trim()) {
       Alert.alert('Required Fields', 'Please fill in title, landmark location, and description.');
       return;
     }
@@ -102,29 +166,49 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
       }
 
       const res = await postGrievance({
-        title,
+        title: title.trim(),
         category,
         priority,
-        location,
-        description,
-        photoUri: photoUri || undefined,
+        location: location.trim(),
+        description: description.trim(),
+        photoUri: selectedPhoto?.uri,
+        photoName: selectedPhoto?.fileName || undefined,
+        photoType: selectedPhoto?.mimeType || undefined,
         idempotencyKey,
       });
 
       setLoading(false);
 
       if (res.error) {
-        Alert.alert('Submission Failed', res.error);
+        setSubmitError(res.error);
+        Alert.alert(
+          'Submission Failed',
+          res.error,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Retry', onPress: () => handleSubmit() }
+          ]
+        );
         return;
       }
 
-      setPhotoUri(null);
+      // Successful submission: reset state and regenerate idempotency key for next submission
+      setSelectedPhoto(null);
       setIdempotencyKey(generateIdempotencyKey());
       Alert.alert('Grievance Lodged', `Your complaint #${res.data?._id?.substring(18) || ''} has been lodged successfully!`);
       onNavigate('MyGrievances');
     } catch (err: any) {
       setLoading(false);
-      Alert.alert('Network Error', err.message || 'Failed to submit complaint to portal server.');
+      const msg = err.message || 'Failed to submit complaint to portal server.';
+      setSubmitError(msg);
+      Alert.alert(
+        'Network Error',
+        msg,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Retry', onPress: () => handleSubmit() }
+        ]
+      );
     }
   };
 
@@ -233,10 +317,10 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
         <View style={styles.formGroup}>
           <View style={styles.photoHeaderRow}>
             <Text style={styles.label}>Photographic Evidence (Optional)</Text>
-            <Text style={styles.photoSubLabel}>JPEG, PNG • Max 8 MB</Text>
+            <Text style={styles.photoSubLabel}>JPEG, PNG, WebP • Max 8 MB</Text>
           </View>
 
-          {!photoUri ? (
+          {!selectedPhoto ? (
             <View style={styles.photoActionRow}>
               <TouchableOpacity
                 style={styles.photoActionBtn}
@@ -257,10 +341,19 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
             </View>
           ) : (
             <View style={styles.previewCard}>
-              <Image source={{ uri: photoUri }} style={styles.previewImage} accessibilityLabel="Evidence preview" />
+              <Image
+                source={{ uri: selectedPhoto.uri }}
+                style={styles.previewImage}
+                accessibilityLabel="Evidence preview"
+              />
               <View style={styles.previewInfo}>
                 <Text style={styles.previewStatus}>✓ Evidence Attached</Text>
-                <Text style={styles.previewNote}>Will be uploaded securely with complaint</Text>
+                <Text style={styles.previewFilename} numberOfLines={1} ellipsizeMode="middle">
+                  {selectedPhoto.fileName || 'evidence-photo.jpg'}
+                </Text>
+                <Text style={styles.previewNote}>
+                  {selectedPhoto.fileSize ? `${(selectedPhoto.fileSize / (1024 * 1024)).toFixed(2)} MB • ` : ''}Secure private upload
+                </Text>
                 <View style={styles.previewButtonsRow}>
                   <TouchableOpacity style={styles.changePhotoBtn} onPress={handlePickGallery} disabled={loading}>
                     <Text style={styles.changePhotoBtnText}>Change</Text>
@@ -274,12 +367,29 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
           )}
         </View>
 
+        {submitError && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>⚠️ {submitError}</Text>
+            <TouchableOpacity onPress={handleSubmit} disabled={loading} style={styles.retryInlineBtn}>
+              <Text style={styles.retryInlineBtnText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <TouchableOpacity
           style={[styles.submitBtn, loading && styles.btnDisabled]}
           onPress={handleSubmit}
           disabled={loading}
+          accessibilityLabel={loading ? 'Submitting grievance' : 'Lodge official grievance'}
         >
-          <Text style={styles.submitBtnText}>{loading ? 'Submitting...' : '📝 Lodge Official Grievance'}</Text>
+          {loading ? (
+            <View style={styles.submitBtnLoadingRow}>
+              <ActivityIndicator size="small" color="#0F172A" />
+              <Text style={styles.submitBtnText}> Submitting Grievance...</Text>
+            </View>
+          ) : (
+            <Text style={styles.submitBtnText}>📝 Lodge Official Grievance</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -446,6 +556,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 2,
   },
+  previewFilename: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
   previewNote: {
     color: '#94A3B8',
     fontSize: 11,
@@ -476,5 +592,38 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  errorBanner: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  errorBannerText: {
+    color: '#EF4444',
+    fontSize: 13,
+    flex: 1,
+    marginRight: 8,
+  },
+  retryInlineBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  retryInlineBtnText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  submitBtnLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

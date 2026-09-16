@@ -106,6 +106,7 @@ export const MyGrievancesScreen: React.FC<MyGrievancesScreenProps> = ({ user, on
             >
               <View style={styles.cardHeader}>
                 <Text style={styles.title}>{item.title}</Text>
+                <Text style={styles.title}>{item.title}{item.attachment ? ' 📸' : ''}</Text>
                 <View style={[styles.prioBadge, item.priority === 'Critical' && styles.criticalBadge]}>
                   <Text style={styles.prioText}>{item.priority}</Text>
                 </View>

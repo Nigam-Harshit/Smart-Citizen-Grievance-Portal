@@ -1,29 +1,34 @@
 {
   "expo": {
-    "name": "mobile",
     "name": "Grievance Portal",
     "slug": "mobile",
-    "version": "1.0.0",
-    "version": "1.0.1",
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Grievance Portal to capture photos to attach evidence to municipal complaints.",
+        "NSPhotoLibraryUsageDescription": "Allow Grievance Portal to access your photos to attach evidence to municipal complaints."
+      }
     },
     "android": {
-      "versionCode": 2,
       "versionCode": 3,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "backgroundColor": "#0F172A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.mobile"
+      "package": "com.anonymous.mobile",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

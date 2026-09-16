@@ -439,7 +439,7 @@ router.post('/reconcile-storage', async (req, res) => {
         }
 
         if (req.body && Array.isArray(req.body.targetKeys)) {
-            options.targetKeys = req.body.targetKeys;
+            options.targetKeys = req.body.targetKeys.slice(0, 500);
         }
 
         const report = await reconcileStorage(options);

@@ -34,9 +34,15 @@ const getGrievances = async (req, res) => {
         }
 
         if (citizenId) {
-            const associatedIds = await getAllAssociatedIds(citizenId);
-            if (associatedIds.length > 0) {
-                query.citizenId = { $in: associatedIds };
+            if (req.user && req.user.role === 'citizen') {
+                const myAssociatedIds = await identityHelper.getAllAssociatedIds(req.user._id);
+                if (!myAssociatedIds.includes(String(citizenId))) {
+                    return res.status(403).json({ message: 'Access forbidden: You cannot query other citizens grievances' });
+                }
+            }
+            const targetIds = await identityHelper.getAllAssociatedIds(citizenId);
+            if (targetIds.length > 0) {
+                query.citizenId = { $in: targetIds };
             } else {
                 query.citizenId = citizenId;
             }
@@ -77,6 +83,14 @@ const getGrievances = async (req, res) => {
 
 const getGrievanceById = async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        if (!req.params.id || typeof req.params.id !== 'string' || req.params.id.trim() === '') {
+            return res.status(404).json({ message: 'Grievance not found' });
+        }
+
         const grievance = await Grievance.findById(req.params.id)
             .populate('citizenId', 'name email contact address escalationRisk')
             .populate('assignedTo', 'name email role scope');
@@ -86,27 +100,32 @@ const getGrievanceById = async (req, res) => {
         }
 
         // Server-side Scope & Role Check
-        if (req.user) {
-            const role = req.user.role;
-            if (role === 'citizen') {
-                const associatedIds = await identityHelper.getAllAssociatedIds(req.user._id);
-                const grievanceCitizenIdStr = String(grievance.citizenId?._id || grievance.citizenId);
-                if (!associatedIds.includes(grievanceCitizenIdStr)) {
-                    return res.status(403).json({ message: 'Access forbidden: You can only view your own submitted grievances' });
-                }
-            } else if (role === 'officer' || role === 'field_officer') {
-                if (!grievance.assignedTo || String(grievance.assignedTo._id || grievance.assignedTo) !== String(req.user._id)) {
-                    return res.status(403).json({ message: 'Access forbidden: Grievance is not assigned to you' });
-                }
-            } else if (role === 'manager') {
-                if (req.user.scope && req.user.scope !== 'All' && grievance.category !== req.user.scope) {
-                    return res.status(403).json({ message: `Access forbidden: Grievance category (${grievance.category}) is outside your manager scope (${req.user.scope})` });
-                }
+        const role = req.user.role;
+        if (role === 'citizen') {
+            const associatedIds = await identityHelper.getAllAssociatedIds(req.user._id);
+            const grievanceCitizenIdStr = String(grievance.citizenId?._id || grievance.citizenId);
+            if (!associatedIds.includes(grievanceCitizenIdStr)) {
+                return res.status(403).json({ message: 'Access forbidden: You can only view your own submitted grievances' });
             }
+        } else if (role === 'officer' || role === 'field_officer') {
+            if (!grievance.assignedTo || String(grievance.assignedTo._id || grievance.assignedTo) !== String(req.user._id)) {
+                return res.status(403).json({ message: 'Access forbidden: Grievance is not assigned to you' });
+            }
+        } else if (role === 'manager') {
+            if (req.user.scope && req.user.scope !== 'All' && grievance.category !== req.user.scope) {
+                return res.status(403).json({ message: `Access forbidden: Grievance category (${grievance.category}) is outside your manager scope (${req.user.scope})` });
+            }
+        } else if (role === 'admin') {
+            // admin has full access
+        } else {
+            return res.status(403).json({ message: `Access forbidden: Role ${role} is not authorized` });
         }
 
         res.status(200).json(grievance);
     } catch (error) {
+        if (error.name === 'CastError') {
+            return res.status(404).json({ message: 'Grievance not found' });
+        }
         console.error('getGrievanceById error:', error);
         res.status(500).json({ message: error.message });
     }
@@ -114,6 +133,14 @@ const getGrievanceById = async (req, res) => {
 
 const getGrievancePhoto = async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        if (!req.params.id || typeof req.params.id !== 'string' || req.params.id.trim() === '') {
+            return res.status(404).json({ message: 'Grievance not found' });
+        }
+
         const grievance = await Grievance.findById(req.params.id);
 
         if (!grievance) {
@@ -121,24 +148,25 @@ const getGrievancePhoto = async (req, res) => {
         }
 
         // Server-side Scope & Role Authorization
-        if (req.user) {
-            const role = req.user.role;
-            if (role === 'citizen') {
-                const associatedIds = await identityHelper.getAllAssociatedIds(req.user._id);
-                const grievanceCitizenIdStr = String(grievance.citizenId?._id || grievance.citizenId);
-                if (!associatedIds.includes(grievanceCitizenIdStr)) {
-                    return res.status(403).json({ message: 'Access forbidden: You can only view photos of your own submitted grievances' });
-                }
-            } else if (role === 'officer' || role === 'field_officer') {
-                if (!grievance.assignedTo || String(grievance.assignedTo._id || grievance.assignedTo) !== String(req.user._id)) {
-                    return res.status(403).json({ message: 'Access forbidden: Grievance is not assigned to you' });
-                }
-            } else if (role === 'manager') {
-                if (req.user.scope && req.user.scope !== 'All' && grievance.category !== req.user.scope) {
-                    return res.status(403).json({ message: `Access forbidden: Grievance category (${grievance.category}) is outside your manager scope (${req.user.scope})` });
-                }
+        const role = req.user.role;
+        if (role === 'citizen') {
+            const associatedIds = await identityHelper.getAllAssociatedIds(req.user._id);
+            const grievanceCitizenIdStr = String(grievance.citizenId?._id || grievance.citizenId);
+            if (!associatedIds.includes(grievanceCitizenIdStr)) {
+                return res.status(403).json({ message: 'Access forbidden: You can only view photos of your own submitted grievances' });
             }
+        } else if (role === 'officer' || role === 'field_officer') {
+            if (!grievance.assignedTo || String(grievance.assignedTo._id || grievance.assignedTo) !== String(req.user._id)) {
+                return res.status(403).json({ message: 'Access forbidden: Grievance is not assigned to you' });
+            }
+        } else if (role === 'manager') {
+            if (req.user.scope && req.user.scope !== 'All' && grievance.category !== req.user.scope) {
+                return res.status(403).json({ message: `Access forbidden: Grievance category (${grievance.category}) is outside your manager scope (${req.user.scope})` });
+            }
+        } else if (role === 'admin') {
             // admin has full access
+        } else {
+            return res.status(403).json({ message: `Access forbidden: Role ${role} is not authorized` });
         }
 
         // Verify that this grievance actually has an evidence photo attachment
@@ -166,6 +194,9 @@ const getGrievancePhoto = async (req, res) => {
             }
         });
     } catch (error) {
+        if (error.name === 'CastError') {
+            return res.status(404).json({ message: 'Grievance not found' });
+        }
         console.error('getGrievancePhoto error:', error.message);
         res.status(500).json({ message: 'Evidence photo currently unavailable' });
     }
@@ -343,38 +374,62 @@ const createGrievance = async (req, res) => {
 
 const updateGrievance = async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        if (!req.params.id || typeof req.params.id !== 'string' || req.params.id.trim() === '') {
+            return res.status(404).json({ message: 'Grievance not found' });
+        }
+
         const grievance = await Grievance.findById(req.params.id);
         if (!grievance) {
             return res.status(404).json({ message: 'Grievance not found' });
         }
 
         // Server-side Scope & Role Check for Updates
-        if (req.user) {
-            const role = req.user.role;
-            if (role === 'officer' || role === 'field_officer') {
-                if (!grievance.assignedTo || String(grievance.assignedTo) !== String(req.user._id)) {
-                    return res.status(403).json({ message: 'Access forbidden: You can only update grievances assigned to you' });
-                }
-            } else if (role === 'manager') {
-                if (req.user.scope && req.user.scope !== 'All' && grievance.category !== req.user.scope) {
-                    return res.status(403).json({ message: `Access forbidden: Grievance category (${grievance.category}) is outside your manager scope (${req.user.scope})` });
-                }
-            } else if (role === 'citizen') {
-                return res.status(403).json({ message: 'Citizens cannot directly update grievance administrative metadata' });
+        const role = req.user.role;
+        if (role === 'officer' || role === 'field_officer') {
+            if (!grievance.assignedTo || String(grievance.assignedTo) !== String(req.user._id)) {
+                return res.status(403).json({ message: 'Access forbidden: You can only update grievances assigned to you' });
             }
+        } else if (role === 'manager') {
+            if (req.user.scope && req.user.scope !== 'All' && grievance.category !== req.user.scope) {
+                return res.status(403).json({ message: `Access forbidden: Grievance category (${grievance.category}) is outside your manager scope (${req.user.scope})` });
+            }
+        } else if (role === 'citizen') {
+            return res.status(403).json({ message: 'Citizens cannot directly update grievance administrative metadata' });
+        } else if (role === 'admin') {
+            // admin authorized
+        } else {
+            return res.status(403).json({ message: `Access forbidden: Role ${role} is not authorized` });
         }
 
         const oldStatus = grievance.status;
-        const updateData = { ...req.body };
+        const rawBody = req.body || {};
+        const updateData = {};
 
         // Immutable security boundary: prevent modifying evidence attachment, idempotencyKey, or citizen ownership via PUT
-        delete updateData.attachment;
-        delete updateData.idempotencyKey;
-        delete updateData.citizenId;
-        if (updateData.$set && typeof updateData.$set === 'object') {
-            delete updateData.$set.attachment;
-            delete updateData.$set.idempotencyKey;
-            delete updateData.$set.citizenId;
+        const IMMUTABLE_ROOTS = ['attachment', 'idempotencyKey', 'citizenId', 'citizenEmail', 'citizenName', '_id', 'createdAt', 'updatedAt'];
+
+        for (const [key, value] of Object.entries(rawBody)) {
+            // Strip top-level Mongo operators like $unset, $rename, etc.
+            if (key.startsWith('$')) {
+                if (key === '$set' && value && typeof value === 'object') {
+                    for (const [subKey, subVal] of Object.entries(value)) {
+                        const isForbidden = IMMUTABLE_ROOTS.some(root => subKey === root || subKey.startsWith(root + '.'));
+                        if (!isForbidden) {
+                            updateData[subKey] = subVal;
+                        }
+                    }
+                }
+                continue;
+            }
+
+            const isForbidden = IMMUTABLE_ROOTS.some(root => key === root || key.startsWith(root + '.'));
+            if (!isForbidden) {
+                updateData[key] = value;
+            }
         }
 
         let assignedOfficerObj = null;
@@ -439,6 +494,9 @@ const updateGrievance = async (req, res) => {
 
         res.status(200).json(updatedGrievance);
     } catch (error) {
+        if (error.name === 'CastError') {
+            return res.status(404).json({ message: 'Grievance not found' });
+        }
         console.error('updateGrievance error:', error);
         if (error.name === 'ValidationError') {
             return res.status(400).json({ message: error.message });

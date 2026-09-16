@@ -54,14 +54,32 @@ const generateStorageKey = () => {
 };
 
 /**
- * Uploads a normalized JPEG buffer to the private Cloudflare R2 bucket.
- * @param {string} key - The destination storage key (e.g. grievances/<uuid>.jpg)
- * @param {Buffer} buffer - The image binary buffer to store
+ * Validates that an object key belongs strictly to the grievances namespace,
+ * contains no path traversal sequences, URL-encoding tricks, query parameters,
+ * or illegal characters, and adheres to the server-controlled key format.
+ * @param {string} key
+ * @returns {boolean}
+ */
+const isValidStorageKey = (key) => {
+    if (!key || typeof key !== 'string') return false;
+    if (key.length < 12 || key.length > 256) return false;
+    if (!key.startsWith('grievances/')) return false;
+    if (key.includes('..') || key.includes('\\') || key.includes('\0') || key.includes('%') || key.includes('?') || key.includes('#')) {
+        return false;
+    }
+    if (/[\s\x00-\x1f\x7f]/.test(key)) return false;
+    return /^grievances\/[a-zA-Z0-9_-]+(\.[a-zA-Z0-9]+)+$/.test(key);
+};
+
+/**
+ * Uploads a normalized evidence photo buffer to the private Cloudflare R2 bucket.
+ * @param {string} key - The validated storage key (must start with grievances/)
+ * @param {Buffer} buffer - The image buffer to upload
  * @param {string} [mimeType='image/jpeg'] - The Content-Type header
  * @returns {Promise<{ key: string, bucket: string }>}
  */
 const uploadToR2 = async (key, buffer, mimeType = 'image/jpeg') => {
-    if (!key || typeof key !== 'string' || !key.startsWith('grievances/')) {
+    if (!isValidStorageKey(key)) {
         throw new Error('Invalid storage key provided for R2 upload');
     }
     if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
@@ -96,7 +114,7 @@ const uploadToR2 = async (key, buffer, mimeType = 'image/jpeg') => {
  * @returns {Promise<{ deleted: boolean, key: string }>}
  */
 const deleteFromR2 = async (key) => {
-    if (!key || typeof key !== 'string') {
+    if (!isValidStorageKey(key)) {
         throw new Error('Invalid storage key provided for R2 deletion');
     }
 
@@ -127,7 +145,7 @@ const deleteFromR2 = async (key) => {
  * @returns {Promise<{ url: string, expiresIn: number }>}
  */
 const generatePresignedGetUrl = async (key, expiresInSeconds) => {
-    if (!key || typeof key !== 'string') {
+    if (!isValidStorageKey(key)) {
         throw new Error('Invalid storage key provided for presigned URL generation');
     }
 
@@ -149,19 +167,6 @@ const generatePresignedGetUrl = async (key, expiresInSeconds) => {
         err.code = 'PRESIGN_URL_ERROR';
         throw err;
     }
-};
-
-/**
- * Validates that an object key belongs strictly to the grievances namespace
- * and contains no path traversal sequences or illegal characters.
- * @param {string} key
- * @returns {boolean}
- */
-const isValidStorageKey = (key) => {
-    if (!key || typeof key !== 'string') return false;
-    if (!key.startsWith('grievances/')) return false;
-    if (key.includes('..') || key.includes('\\') || key.includes('\0')) return false;
-    return true;
 };
 
 /**

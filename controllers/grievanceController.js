@@ -181,6 +181,13 @@ const createGrievance = async (req, res) => {
             return res.status(400).json({ message: 'Please provide title, description, category, and location' });
         }
 
+        // Validate and sanitize idempotencyKey format immediately at request intake
+        if (idempotencyKey) {
+            if (typeof idempotencyKey !== 'string' || idempotencyKey.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(idempotencyKey)) {
+                return res.status(400).json({ message: 'Invalid idempotencyKey format. Must be an alphanumeric string up to 128 characters.' });
+            }
+        }
+
         let citizenDoc = null;
         if (req.user && req.user.role === 'citizen') {
             citizenDoc = await identityHelper.getCanonicalCitizen({
@@ -360,6 +367,11 @@ const updateGrievance = async (req, res) => {
         const oldStatus = grievance.status;
         const updateData = { ...req.body };
 
+        // Immutable security boundary: prevent modifying evidence attachment, idempotencyKey, or citizen ownership via PUT
+        delete updateData.attachment;
+        delete updateData.idempotencyKey;
+        delete updateData.citizenId;
+
         let assignedOfficerObj = null;
         if (updateData.assignedTo && updateData.assignedTo !== String(grievance.assignedTo)) {
             const officer = await User.findById(updateData.assignedTo);
@@ -390,7 +402,7 @@ const updateGrievance = async (req, res) => {
                 statusChange: updatedGrievance.status
             });
 
-            await logAudit(req.user._id, 'Assign Officer', `Assigned grievance "${grievance.title}" to officer ${assignedOfficerObj.name}.`);
+            await auditController.logAudit(req.user._id, 'Assign Officer', `Assigned grievance "${grievance.title}" to officer ${assignedOfficerObj.name}.`);
         }
 
         if (updateData.status && updateData.status !== oldStatus) {
@@ -402,7 +414,7 @@ const updateGrievance = async (req, res) => {
                 statusChange: updateData.status
             });
 
-            await logAudit(req.user._id, 'Update Grievance', `Changed grievance "${grievance.title}" status from ${oldStatus} to ${updateData.status}.`);
+            await auditController.logAudit(req.user._id, 'Update Grievance', `Changed grievance "${grievance.title}" status from ${oldStatus} to ${updateData.status}.`);
 
             // Email alert simulation/sending
             const citizen = await Citizen.findById(grievance.citizenId);

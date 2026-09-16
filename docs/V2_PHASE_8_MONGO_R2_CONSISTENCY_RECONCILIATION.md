@@ -199,3 +199,4 @@ For remote maintenance and monitoring integrations, a protected route is availab
    - `orphansDeletedCount > 0`: Informational notification confirming reclaimed storage space.
 3. **Zero Secrets in Logs:**
    - All reconciliation logs, CLI outputs, and API responses strictly omit AWS secret keys, access tokens, and raw connection URIs.
+

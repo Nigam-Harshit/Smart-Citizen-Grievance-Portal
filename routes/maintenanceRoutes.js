@@ -1,17 +1,47 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const User = require('../models/User');
 const Citizen = require('../models/Citizen');
 const Grievance = require('../models/Grievance');
 const GrievanceUpdate = require('../models/GrievanceUpdate');
 const AuditLog = require('../models/AuditLog');
 const Insight = require('../models/Insight');
+const { maintenanceLimiter } = require('../middleware/rateLimiter');
+
+// Rate limit all maintenance routes to prevent secret brute-forcing
+router.use(maintenanceLimiter);
+
+/**
+ * Constant-time string comparison using SHA-256 pre-hashing to eliminate
+ * timing side-channels and length leakage.
+ */
+const safeSecretCompare = (a, b) => {
+    if (!a || !b || typeof a !== 'string' || typeof b !== 'string') return false;
+    const hashA = crypto.createHash('sha256').update(a).digest();
+    const hashB = crypto.createHash('sha256').update(b).digest();
+    return crypto.timingSafeEqual(hashA, hashB);
+};
 
 // Security middleware: Require x-maintenance-secret matching dedicated maintenance key or JWT_SECRET
-const MAINTENANCE_KEY = process.env.MAINTENANCE_KEY || 'civic_demo_maintenance_key_2026';
 router.use((req, res, next) => {
+    const configuredKey = process.env.MAINTENANCE_KEY || (process.env.NODE_ENV === 'production' ? null : 'civic_demo_maintenance_key_2026');
+    const jwtSecret = process.env.JWT_SECRET;
+
+    // Fail closed if neither secret is configured
+    if (!configuredKey && !jwtSecret) {
+        return res.status(503).json({ message: 'Maintenance interface unavailable: Secret not configured' });
+    }
+
     const secret = req.headers['x-maintenance-secret'];
-    if (!secret || (secret !== MAINTENANCE_KEY && secret !== process.env.JWT_SECRET)) {
+    if (!secret || typeof secret !== 'string') {
+        return res.status(403).json({ message: 'Forbidden: Missing maintenance secret' });
+    }
+
+    const matchesMaintenanceKey = configuredKey && safeSecretCompare(secret, configuredKey);
+    const matchesJwtSecret = jwtSecret && safeSecretCompare(secret, jwtSecret);
+
+    if (!matchesMaintenanceKey && !matchesJwtSecret) {
         return res.status(403).json({ message: 'Forbidden: Invalid maintenance secret' });
     }
     next();
@@ -375,14 +405,30 @@ router.post('/cleanup-and-seed', async (req, res) => {
 
 // 4. Storage Consistency & Orphan Reconciliation endpoint
 const { reconcileStorage } = require('../services/reconciliationService');
+let isReconciling = false;
+
 router.post('/reconcile-storage', async (req, res) => {
+    // Concurrency guard: prevent overlapping reconciliation runs
+    if (isReconciling) {
+        return res.status(409).json({ error: 'Reconciliation is currently in progress. Please wait for the current run to finish.' });
+    }
+
+    isReconciling = true;
     try {
-        const dryRun = req.body.dryRun !== false; // Default: true (safe dry-run)
-        const safetyWindowHours = Number(req.body.safetyWindowHours);
+        // Safe default: only boolean false triggers destructive mode (string "false" remains safe dry-run)
+        const isExplicitDestructive = Boolean(req.body && req.body.dryRun === false);
+        const dryRun = !isExplicitDestructive;
         const options = { dryRun };
 
-        if (!isNaN(safetyWindowHours) && safetyWindowHours >= 0) {
-            options.safetyWindowMs = safetyWindowHours * 60 * 60 * 1000;
+        // Validate safetyWindowHours: must be a positive integer between 1 and 720 hours if provided
+        if (req.body && req.body.safetyWindowHours !== undefined) {
+            const hours = Number(req.body.safetyWindowHours);
+            if (!Number.isInteger(hours) || hours < 1 || hours > 720) {
+                return res.status(400).json({
+                    error: 'Invalid safetyWindowHours. Must be an integer between 1 and 720 hours.'
+                });
+            }
+            options.safetyWindowMs = hours * 60 * 60 * 1000;
         }
 
         const report = await reconcileStorage(options);
@@ -390,6 +436,8 @@ router.post('/reconcile-storage', async (req, res) => {
     } catch (err) {
         console.error('Maintenance reconcile-storage error:', err);
         res.status(500).json({ error: 'Storage reconciliation failed: ' + err.message });
+    } finally {
+        isReconciling = false;
     }
 });
 

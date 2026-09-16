@@ -65,7 +65,11 @@ const run = async () => {
     }
 
     const options = { dryRun };
-    if (safetyWindowHours !== null && !isNaN(safetyWindowHours)) {
+    if (safetyWindowHours !== null) {
+        if (!Number.isFinite(safetyWindowHours) || safetyWindowHours < 1 || safetyWindowHours > 720) {
+            console.error('❌ Error: --safety-window-hours must be a number between 1 and 720 hours.');
+            process.exit(1);
+        }
         options.safetyWindowMs = safetyWindowHours * 60 * 60 * 1000;
     }
 
@@ -143,3 +147,4 @@ if (require.main === module) {
 }
 
 module.exports = { run };
+

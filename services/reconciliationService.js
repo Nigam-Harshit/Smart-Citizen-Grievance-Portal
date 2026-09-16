@@ -232,7 +232,23 @@ const reconcileStorage = async (options = {}) => {
     const now = Date.now();
     for (const [key, obj] of r2ObjectMap.entries()) {
         if (!mongoReferenceMap.has(key)) {
-            const lastModTime = obj.lastModified ? new Date(obj.lastModified).getTime() : now;
+            const lastModDate = obj.lastModified ? new Date(obj.lastModified) : null;
+            const lastModTime = lastModDate && !isNaN(lastModDate.getTime()) ? lastModDate.getTime() : null;
+
+            // Fail-safe: If lastModified is missing or unparseable, treat as recent to protect from deletion
+            if (lastModTime === null) {
+                recentUnreferenced.push({
+                    key,
+                    size: obj.size,
+                    lastModified: obj.lastModified,
+                    ageMs: 0,
+                    safetyWindowMs,
+                    reason: 'Unparseable or missing lastModified timestamp - protected from deletion',
+                    status: ConsistencyStatus.RECENT_UNREFERENCED_OBJECT
+                });
+                continue;
+            }
+
             const ageMs = now - lastModTime;
 
             if (ageMs < safetyWindowMs) {
@@ -327,3 +343,4 @@ module.exports = {
     DEFAULT_SAFETY_WINDOW_MS,
     reconcileStorage
 };
+

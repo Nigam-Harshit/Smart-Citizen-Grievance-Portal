@@ -8,6 +8,7 @@ const auditController = require('./auditController');
 const identityHelper = require('../utils/identityHelper');
 const imageProcessor = require('../utils/imageProcessor');
 const storageService = require('../utils/storageService');
+const costGovernorService = require('../services/costGovernorService');
 
 const getGrievances = async (req, res) => {
     try {
@@ -179,6 +180,9 @@ const getGrievancePhoto = async (req, res) => {
             return res.status(503).json({ message: 'Object storage service is temporarily unavailable' });
         }
 
+        // Record photo access telemetry for cost governor
+        costGovernorService.recordPhotoAccessRequest().catch(() => {});
+
         // Generate temporary presigned GET URL from the server-persisted storageKey
         const { url, expiresIn } = await storageService.generatePresignedGetUrl(grievance.attachment.storageKey);
 
@@ -205,6 +209,7 @@ const getGrievancePhoto = async (req, res) => {
 const createGrievance = async (req, res) => {
     let uploadedStorageKey = null;
     let resolvedCitizenId = null;
+    let storageReservation = null;
     try {
         let { citizenId, title, description, category, location, priority, citizenName, assignedTo, idempotencyKey } = req.body;
 
@@ -261,6 +266,23 @@ const createGrievance = async (req, res) => {
                 return res.status(503).json({ message: 'Object storage service is temporarily unavailable' });
             }
 
+            // Layer 4 & 5: Cost Governor Safety Net Check & Pre-processing Quota Reservation
+            const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+            const estimatedBytes = req.file.size || 2 * 1024 * 1024;
+            const reservation = await costGovernorService.reserveUploadQuota({
+                citizenId: resolvedCitizenId || citizenId,
+                ip: clientIp,
+                estimatedBytes
+            });
+
+            if (!reservation.allowed) {
+                return res.status(503).json({
+                    code: reservation.code || 'PHOTO_STORAGE_SAFE_MODE',
+                    message: reservation.message || 'Photographic evidence uploads are temporarily unavailable due to safety limits. You may still lodge a grievance without a photo.'
+                });
+            }
+            storageReservation = reservation;
+
             const processed = await imageProcessor.validateAndProcessImage(req.file.buffer);
             const storageKey = storageService.generateStorageKey();
 
@@ -274,6 +296,7 @@ const createGrievance = async (req, res) => {
                 size: processed.size,
                 dimensions: processed.dimensions,
                 checksum: processed.checksum,
+                provider: storageService.getStorageProvider() || 's3',
                 uploadedAt: new Date()
             };
         }
@@ -316,6 +339,17 @@ const createGrievance = async (req, res) => {
             attachment: attachmentData || undefined
         });
 
+        // Commit storage reservation if photo was uploaded
+        if (storageReservation && attachmentData) {
+            await costGovernorService.commitReservation({
+                period: storageReservation.period,
+                estimatedBytes: storageReservation.estimatedBytes,
+                actualBytes: attachmentData.size,
+                citizenId: resolvedCitizenId || citizenId,
+                ip: req.ip || req.connection?.remoteAddress || 'unknown'
+            });
+        }
+
         // Update citizen activity
         if (citizenDoc.save) {
             citizenDoc.lastActivity = Date.now();
@@ -335,13 +369,32 @@ const createGrievance = async (req, res) => {
 
         res.status(201).json(grievance);
     } catch (error) {
-        // Compensating transaction: purge R2 object if database save failed
+        const isClientValidation = error.name === 'ValidationError' ||
+            error.code === 'MALFORMED_IMAGE' ||
+            error.code === 'FILE_TOO_LARGE' ||
+            error.code === 'PIXEL_LIMIT_EXCEEDED' ||
+            error.code === 'UNSUPPORTED_FORMAT';
+
+        // Release storage quota reservation if grievance creation failed
+        if (storageReservation) {
+            try {
+                await costGovernorService.releaseReservation({
+                    period: storageReservation.period,
+                    estimatedBytes: storageReservation.estimatedBytes,
+                    isFailure: !isClientValidation
+                });
+            } catch (relErr) {
+                console.warn('[CostGovernor] Failed to release quota reservation:', relErr.message);
+            }
+        }
+
+        // Compensating transaction: purge object if database save failed
         if (uploadedStorageKey) {
             try {
                 await storageService.deleteFromR2(uploadedStorageKey);
-                console.warn(`[Compensating Transaction] Purged orphaned R2 asset: ${uploadedStorageKey}`);
+                console.warn(`[Compensating Transaction] Purged orphaned storage asset: ${uploadedStorageKey}`);
             } catch (cleanupErr) {
-                console.error(`[CRITICAL] Failed to purge orphaned R2 asset ${uploadedStorageKey}: ${cleanupErr.message}`);
+                console.error(`[CRITICAL] Failed to purge orphaned storage asset ${uploadedStorageKey}: ${cleanupErr.message}`);
                 console.error(`[ORPHAN_RECONCILIATION_REQUIRED] ${JSON.stringify({
                     storageKey: uploadedStorageKey,
                     citizenId: resolvedCitizenId || req.body?.citizenId || null,

@@ -545,6 +545,14 @@ const reconcileStorage = async (options = {}) => {
 
         const completedAt = new Date();
 
+        // Update StorageUsage ledger reconciliation timestamp if connected
+        try {
+            const StorageUsage = require('../models/StorageUsage');
+            if (StorageUsage.db && StorageUsage.db.readyState === 1) {
+                await StorageUsage.updateMany({}, { $set: { lastReconciledAt: completedAt } });
+            }
+        } catch (_) {}
+
         return {
             timestamp: completedAt.toISOString(),
             durationMs: completedAt.getTime() - startedAt.getTime(),

@@ -5,39 +5,94 @@ const { v4: uuidv4 } = require('uuid');
 let cachedClient = null;
 
 /**
- * Validates that all required R2 environment variables are populated.
- * @returns {boolean}
+ * Resolves the active storage provider based on environment configuration.
+ * Prioritizes AWS S3; falls back to Cloudflare R2.
+ * @returns {'s3'|'r2'|null}
  */
-const isStorageConfigured = () => {
-    return Boolean(
+const getStorageProvider = () => {
+    if (
+        process.env.AWS_ACCESS_KEY_ID &&
+        process.env.AWS_SECRET_ACCESS_KEY &&
+        (process.env.S3_BUCKET_NAME || process.env.AWS_BUCKET_NAME)
+    ) {
+        return 's3';
+    }
+    if (
         process.env.R2_ACCOUNT_ID &&
         process.env.R2_ACCESS_KEY_ID &&
         process.env.R2_SECRET_ACCESS_KEY &&
         process.env.R2_BUCKET_NAME
+    ) {
+        return 'r2';
+    }
+    return null;
+};
+
+/**
+ * Resolves the active bucket name from S3 or R2 environment variables.
+ * @returns {string|null}
+ */
+const getBucketName = () => {
+    return (
+        process.env.S3_BUCKET_NAME ||
+        process.env.AWS_BUCKET_NAME ||
+        process.env.R2_BUCKET_NAME ||
+        null
     );
 };
 
 /**
- * Initializes and returns the S3Client configured for Cloudflare R2.
+ * Validates that all required storage environment variables are populated for S3 or R2.
+ * @returns {boolean}
+ */
+const isStorageConfigured = () => {
+    return Boolean(getStorageProvider());
+};
+
+/**
+ * Resets the cached S3Client instance (primarily for testing and dynamic config changes).
+ */
+const resetClient = () => {
+    cachedClient = null;
+};
+
+/**
+ * Initializes and returns the S3Client configured for AWS S3 or Cloudflare R2.
  * Uses lazy initialization and caches the client instance.
  * @returns {S3Client}
  */
 const getS3Client = () => {
-    if (!isStorageConfigured()) {
-        const err = new Error('Cloudflare R2 storage credentials are not configured in environment');
+    const provider = getStorageProvider();
+    if (!provider) {
+        const err = new Error('Object storage credentials (AWS S3 or Cloudflare R2) are not configured in environment');
         err.code = 'STORAGE_NOT_CONFIGURED';
         throw err;
     }
 
     if (!cachedClient) {
-        cachedClient = new S3Client({
-            region: 'auto',
-            endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-            credentials: {
-                accessKeyId: process.env.R2_ACCESS_KEY_ID,
-                secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+        if (provider === 's3') {
+            const config = {
+                region: process.env.AWS_REGION || 'us-east-1',
+                credentials: {
+                    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+                }
+            };
+            if (process.env.AWS_S3_ENDPOINT) {
+                config.endpoint = process.env.AWS_S3_ENDPOINT;
+                config.forcePathStyle = true;
             }
-        });
+            cachedClient = new S3Client(config);
+        } else {
+            cachedClient = new S3Client({
+                region: 'auto',
+                endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+                credentials: {
+                    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+                    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+                }
+            });
+        }
     }
 
     return cachedClient;
@@ -72,54 +127,63 @@ const isValidStorageKey = (key) => {
 };
 
 /**
- * Uploads a normalized evidence photo buffer to the private Cloudflare R2 bucket.
+ * Uploads a normalized evidence photo buffer to the private object storage bucket (AWS S3 or Cloudflare R2).
+ * For AWS S3, automatically applies AES256 server-side encryption (SSE-S3).
  * @param {string} key - The validated storage key (must start with grievances/)
  * @param {Buffer} buffer - The image buffer to upload
  * @param {string} [mimeType='image/jpeg'] - The Content-Type header
- * @returns {Promise<{ key: string, bucket: string }>}
+ * @returns {Promise<{ key: string, bucket: string, provider: string }>}
  */
-const uploadToR2 = async (key, buffer, mimeType = 'image/jpeg') => {
+const uploadToS3 = async (key, buffer, mimeType = 'image/jpeg') => {
     if (!isValidStorageKey(key)) {
-        throw new Error('Invalid storage key provided for R2 upload');
+        throw new Error('Invalid storage key provided for storage upload');
     }
     if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
-        throw new Error('Invalid image buffer provided for R2 upload');
+        throw new Error('Invalid image buffer provided for storage upload');
     }
 
     const client = getS3Client();
-    const bucket = process.env.R2_BUCKET_NAME;
+    const bucket = getBucketName();
+    const provider = getStorageProvider();
 
     try {
-        const command = new PutObjectCommand({
+        const putParams = {
             Bucket: bucket,
             Key: key,
             Body: buffer,
             ContentType: mimeType
-        });
+        };
 
+        // Enforce SSE-S3 AES256 encryption on AWS S3
+        if (provider === 's3') {
+            putParams.ServerSideEncryption = 'AES256';
+        }
+
+        const command = new PutObjectCommand(putParams);
         await client.send(command);
-        return { key, bucket };
+        return { key, bucket, provider };
     } catch (error) {
-        console.error('R2 upload failure for key:', key, error.message);
+        console.error('Storage upload failure for key:', key, error.message);
         const err = new Error('Failed to securely store evidence attachment in object storage');
-        err.code = 'R2_UPLOAD_ERROR';
+        err.code = provider === 's3' ? 'S3_UPLOAD_ERROR' : 'R2_UPLOAD_ERROR';
         throw err;
     }
 };
 
 /**
- * Deletes an object from the private Cloudflare R2 bucket.
+ * Deletes an object from the private object storage bucket (AWS S3 or Cloudflare R2).
  * Used for compensating cleanup when database persistence fails.
  * @param {string} key - The storage key to delete
  * @returns {Promise<{ deleted: boolean, key: string }>}
  */
-const deleteFromR2 = async (key) => {
+const deleteFromS3 = async (key) => {
     if (!isValidStorageKey(key)) {
-        throw new Error('Invalid storage key provided for R2 deletion');
+        throw new Error('Invalid storage key provided for storage deletion');
     }
 
     const client = getS3Client();
-    const bucket = process.env.R2_BUCKET_NAME;
+    const bucket = getBucketName();
+    const provider = getStorageProvider();
 
     try {
         const command = new DeleteObjectCommand({
@@ -130,17 +194,23 @@ const deleteFromR2 = async (key) => {
         await client.send(command);
         return { deleted: true, key };
     } catch (error) {
-        console.error('R2 deletion failure for key:', key, error.message);
+        console.error('Storage deletion failure for key:', key, error.message);
         const err = new Error('Failed to delete object from storage');
-        err.code = 'R2_DELETE_ERROR';
+        err.code = provider === 's3' ? 'S3_DELETE_ERROR' : 'R2_DELETE_ERROR';
         throw err;
     }
 };
 
+// Aliases for unified and legacy compatibility
+const uploadToStorage = uploadToS3;
+const uploadToR2 = uploadToS3;
+const deleteFromStorage = deleteFromS3;
+const deleteFromR2 = deleteFromS3;
+
 /**
  * Generates a temporary authorized presigned GET URL for an evidence image.
  * Expiration defaults to PHOTO_PRESIGNED_EXPIRES_IN (or 300s / 5 minutes).
- * @param {string} key - The R2 storage key
+ * @param {string} key - The storage key
  * @param {number} [expiresInSeconds] - Optional override for expiration TTL
  * @returns {Promise<{ url: string, expiresIn: number }>}
  */
@@ -150,7 +220,7 @@ const generatePresignedGetUrl = async (key, expiresInSeconds) => {
     }
 
     const client = getS3Client();
-    const bucket = process.env.R2_BUCKET_NAME;
+    const bucket = getBucketName();
     const ttl = Number(expiresInSeconds) || Number(process.env.PHOTO_PRESIGNED_EXPIRES_IN) || 300;
 
     try {
@@ -184,7 +254,7 @@ const listObjects = async ({ prefix = 'grievances/', continuationToken, maxKeys 
     }
 
     const client = getS3Client();
-    const bucket = process.env.R2_BUCKET_NAME;
+    const bucket = getBucketName();
 
     try {
         const command = new ListObjectsV2Command({
@@ -213,17 +283,15 @@ const listObjects = async ({ prefix = 'grievances/', continuationToken, maxKeys 
             keyCount: response.KeyCount || objects.length
         };
     } catch (error) {
-        console.error('R2 listObjects failure:', error.message);
+        console.error('Storage listObjects failure:', error.message);
         const err = new Error('Failed to list objects from storage service');
-        err.code = 'R2_LIST_ERROR';
+        err.code = 'STORAGE_LIST_ERROR';
         throw err;
     }
 };
 
 /**
  * Iteratively collects all objects under the grievances namespace across all pages.
- * Handles ContinuationToken pagination until all records are retrieved.
- * Iteratively collects objects under the grievances namespace across pages.
  * Handles ContinuationToken pagination until all records are retrieved,
  * or until optional maxObjects ceiling is reached.
  * @param {object} [options]
@@ -257,7 +325,7 @@ const listAllObjects = async ({ prefix = 'grievances/', maxObjects, batchSize = 
 };
 
 /**
- * Checks whether an object exists in Cloudflare R2 without downloading the body.
+ * Checks whether an object exists in object storage without downloading the body.
  * @param {string} key
  * @returns {Promise<{ exists: boolean, size?: number, lastModified?: Date }>}
  */
@@ -267,7 +335,7 @@ const checkObjectExists = async (key) => {
     }
 
     const client = getS3Client();
-    const bucket = process.env.R2_BUCKET_NAME;
+    const bucket = getBucketName();
 
     try {
         const command = new HeadObjectCommand({
@@ -284,19 +352,26 @@ const checkObjectExists = async (key) => {
         if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404 || error.message?.includes('404')) {
             return { exists: false };
         }
-        console.error('R2 checkObjectExists failure for key:', key, error.message);
+        console.error('Storage checkObjectExists failure for key:', key, error.message);
         const err = new Error('Failed to verify object presence in storage');
-        err.code = 'R2_HEAD_ERROR';
+        err.code = 'STORAGE_HEAD_ERROR';
         throw err;
     }
 };
 
 module.exports = {
     isStorageConfigured,
+    getStorageProvider,
+    getBucketName,
+    resetClient,
     getS3Client,
     generateStorageKey,
     isValidStorageKey,
+    uploadToS3,
+    uploadToStorage,
     uploadToR2,
+    deleteFromS3,
+    deleteFromStorage,
     deleteFromR2,
     generatePresignedGetUrl,
     listObjects,

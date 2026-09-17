@@ -80,6 +80,11 @@ const grievanceSchema = new mongoose.Schema({
     checksum: {
       type: String // SHA-256 hex checksum
     },
+    provider: {
+      type: String,
+      enum: ['s3', 'r2'],
+      default: 's3'
+    },
     uploadedAt: {
       type: Date,
       default: Date.now

@@ -7,6 +7,7 @@ const Grievance = require('../models/Grievance');
 const GrievanceUpdate = require('../models/GrievanceUpdate');
 const AuditLog = require('../models/AuditLog');
 const Insight = require('../models/Insight');
+const costGovernorService = require('../services/costGovernorService');
 const { maintenanceLimiter } = require('../middleware/rateLimiter');
 
 // Rate limit all maintenance routes to prevent secret brute-forcing
@@ -449,6 +450,34 @@ router.post('/reconcile-storage', async (req, res) => {
         res.status(500).json({ error: 'Storage reconciliation failed: ' + err.message });
     } finally {
         isReconciling = false;
+    }
+});
+
+// 5. Cloud Cost Governance Storage Usage telemetry endpoint
+router.get('/storage-usage', async (req, res) => {
+    try {
+        const period = req.query.period || undefined;
+        const usage = await costGovernorService.getStorageUsage(period);
+        res.status(200).json(usage);
+    } catch (err) {
+        console.error('Maintenance getStorageUsage error:', err);
+        res.status(500).json({ error: 'Failed to retrieve storage usage: ' + err.message });
+    }
+});
+
+// 6. Reset Circuit Breaker Safe Mode endpoint
+router.post('/reset-safe-mode', async (req, res) => {
+    try {
+        const period = req.body && req.body.period ? req.body.period : undefined;
+        const updated = await costGovernorService.resetSafeMode(period);
+        res.status(200).json({
+            message: 'Storage circuit breaker successfully reset to ACTIVE mode',
+            period: updated.period,
+            status: updated.status
+        });
+    } catch (err) {
+        console.error('Maintenance resetSafeMode error:', err);
+        res.status(400).json({ error: err.message });
     }
 });
 

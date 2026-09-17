@@ -11,6 +11,9 @@ initCronJobs();
 
 const app = express();
 
+// Trust reverse proxy (Render Cloudflare/Envoy ingress) to enable accurate client IP extraction for rate limiting
+app.set('trust proxy', 1);
+
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
     : ["https://smart-citizen-grievance-portal.vercel.app", "http://localhost:3000", "http://localhost:5000"];

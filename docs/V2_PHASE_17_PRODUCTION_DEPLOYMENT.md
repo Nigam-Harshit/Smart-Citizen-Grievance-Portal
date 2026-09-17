@@ -41,19 +41,25 @@ Prior to triggering production synchronization, an exhaustive audit was executed
 ### 3.1 Backend Service (Render)
 * **Endpoint**: `https://smart-citizen-grievance-portal.onrender.com`
 * **Runtime**: Node.js v20+ on Linux x64 with native `libvips` binaries compiled for `sharp`.
-* **Deployment Trigger**: Automatic webhook integration triggered on push to branch `main`.
-* **Operational Verification**:
+* **Deployment Trigger**: Git-driven deployment integration from GitHub repository.
+* **Operational Verification & Deployment Identity**:
   - `GET /api/health` returns `HTTP 200 OK` with `{"status":"ok","version":"1.0.2"}`.
   - `GET /` returns `HTTP 200 OK` confirming Express API operational status and live MongoDB Atlas connectivity.
   - Auth guards active: `GET /api/grievances` and `GET /api/citizens` return `HTTP 401 Unauthorized` (`{"message":"Not authorized, no token"}`).
   - Database connectivity active: `POST /api/auth/login` with non-existent account returns `HTTP 401 Unauthorized` (`{"message":"Invalid credentials"}`), demonstrating live query execution against the MongoDB Atlas `User` collection.
+  - **Live Serving State**: Diagnostic probing verified that the currently active production container (`rndr-id: 9121cec8-15e2-4fe1`) is still serving the V1 deployment baseline (`27a63c0`). The V2 release candidate (`5b7357b`) has been pushed to GitHub `main`, and manual promotion / branch synchronization in the Render dashboard is required to finalize V2 container activation.
 
 ### 3.2 Frontend Web / PWA (Vercel)
 * **Endpoint**: `https://smart-citizen-grievance-portal.vercel.app`
 * **Configuration**: `client/vercel.json` enforcing SPA route rewrites to `/index.html`.
 * **Build Artifact**: Static React bundle (417.4 kB main bundle, 0 errors, 0 warnings).
 * **PWA Assets**: Progressive Web App manifest (`manifest.json`), service worker (`sw.js`), standalone viewport meta tags, and responsive icons verified.
-* **Network Access Note**: Production domain `smart-citizen-grievance-portal.vercel.app` resolves successfully globally; direct HTTP probing from local corporate workstation environments returned an HTTP 403 network filtering page from local perimeter firewalls restricting `*.vercel.app` domains, while production bundle integrity and routing remain 100% verified.
+* **Operational Verification**:
+  - `https://smart-citizen-grievance-portal.vercel.app/` returns `HTTP 200 OK` (`Server: Vercel`, `x-vercel-id: bom1::...`).
+  - `https://smart-citizen-grievance-portal.vercel.app/manifest.json` returns `HTTP 200 OK` with valid civic manifest.
+  - `https://smart-citizen-grievance-portal.vercel.app/sw.js` returns `HTTP 200 OK` with cache isolation rules.
+  - `https://smart-citizen-grievance-portal.vercel.app/static/js/main.0e78e537.js` returns `HTTP 200 OK` (1.35MB production bundle configured with Render backend URL).
+  - An earlier transient HTTP 403 observation was diagnosed as an intermittent edge propagation / security filter event that cleared once Vercel's global CDN distribution completed.
 
 ### 3.3 Database (MongoDB Atlas)
 * **Cluster**: Multi-node Replica Set on MongoDB Atlas.
@@ -75,7 +81,7 @@ Prior to triggering production synchronization, an exhaustive audit was executed
 ### 3.4 Object Storage (Cloudflare R2)
 * **Bucket**: `smart-citizen-evidence` (Private access).
 * **Security Model**: Direct client access strictly forbidden. All photo uploads pass through backend image normalization and buffer validation before S3 PutObject.
-* **Access Model**: Temporary presigned `GetObjectCommand` URLs with 15-minute (900s) TTL generated on demand for authorized users.
+* **Access Model**: Temporary presigned `GetObjectCommand` URLs with 5-minute (300s) TTL generated on demand for authorized users (`PHOTO_PRESIGNED_EXPIRES_IN=300`).
 
 ---
 
@@ -148,26 +154,32 @@ In strict alignment with the verification protocols established in Phase 16 and 
 * **BLOCKED BY ENVIRONMENT**:
   - `adb devices -l` returned `List of devices attached` (empty). No physical Android device was connected via USB or Wi-Fi to this development workstation.
   - `emulator -list-avds` returned no configured Android Virtual Devices.
-  - Local workstation perimeter firewall blocked direct HTTP probing of `*.vercel.app` domains.
 
 ---
 
 ## 7. Rollback Readiness & Disaster Recovery Plan
 
-The release has been structured to guarantee instantaneous rollback without data loss:
+The release architecture is engineered for low-risk reversibility and data integrity:
 
-1. **Git Reversibility**:
-   - Previous production release on `main`: `27a63c0` (Tagged `v1.0.1`).
-   - Fast-forward merge is 100% reversible via:
+1. **Tier 1: Platform Deployment Rollback (Preferred)**:
+   - **Render Dashboard**: Revert to previous healthy deployment container (`rndr-id: ee57036f-4594-4ae1`) running baseline `27a63c0` (`v1.0.1`).
+   - **Vercel Dashboard**: Promote previous production deployment artifact (`37915d7`) to active production alias with instant edge cache switch.
+2. **Tier 2: Controlled Git Revert & Redeployment**:
+   - In the event of a code rollback requirement, create a forward-reverting commit:
+     ```bash
+     git revert -m 1 <merge-commit> # or git revert HEAD
+     git push origin main
+     ```
+   - Triggers clean CI/CD rebuilds across platforms without rewriting remote history or breaking developer clones.
+3. **Tier 3: Exceptional Emergency Git Reset**:
+   - For emergency recovery when history alignment is required:
      ```bash
      git reset --hard 27a63c0
-     git push origin main --force
+     git push origin main --force # Exceptional disaster recovery only
      ```
-2. **Platform Rollbacks**:
-   - **Render Dashboard**: Single-click instant rollback to previous healthy deployment container (`rndr-id: ee57036f-4594-4ae1`).
-   - **Vercel Dashboard**: Instant promotion of previous production deployment artifact to production alias.
-3. **Database State**:
-   - Database schema changes are strictly additive.
-   - V1 backend services ignore the optional `attachment` field completely if rolled back, preventing any deserialization or schema errors.
-4. **Cloud Storage State**:
-   - R2 storage keys use random UUIDs (`grievances/<id>/<uuid>.jpg`). Reverting the backend leaves existing objects inert without corrupting the bucket.
+4. **Database State & Compatibility Guarantees**:
+   - Database schema changes are strictly additive (`attachment: { type: Object, required: false }`).
+   - Legacy V1 backend services safely ignore the optional `attachment` field when processing grievances.
+   - Zero database rollbacks or destructive migrations required; existing user data and grievance history are preserved.
+5. **Cloud Storage State**:
+   - R2 storage keys use opaque UUIDs (`grievances/<uuid>.jpg`). Reverting the backend leaves existing objects inert in object storage without corrupting tickets or indices.

@@ -291,7 +291,7 @@ const listObjects = async ({ prefix = 'grievances/', continuationToken, maxKeys 
 };
 
 /**
- * Iteratively collects all objects under the grievances namespace across all pages.
+ * Iteratively collects objects under the grievances namespace across pages.
  * Handles ContinuationToken pagination until all records are retrieved,
  * or until optional maxObjects ceiling is reached.
  * @param {object} [options]
@@ -378,4 +378,3 @@ module.exports = {
     listAllObjects,
     checkObjectExists
 };
-

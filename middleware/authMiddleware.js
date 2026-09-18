@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { normalizeRole, ROLES } = require('../utils/roleHelper');
 
 const protect = async (req, res, next) => {
     let token;
@@ -16,6 +17,11 @@ const protect = async (req, res, next) => {
             req.user = await User.findById(decoded.id);
             if (!req.user) {
                 return res.status(401).json({ message: 'Not authorized, user not found' });
+            }
+
+            // Centralized role normalization at authentication boundary
+            if (req.user.role) {
+                req.user.role = normalizeRole(req.user.role);
             }
 
             return next();
@@ -37,8 +43,8 @@ const requireRole = (allowedRoles = []) => {
         }
 
         const rolesArray = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-        const normalizedUserRole = req.user.role === 'field_officer' ? 'officer' : req.user.role;
-        const normalizedAllowed = rolesArray.map(r => r === 'field_officer' ? 'officer' : r);
+        const normalizedUserRole = normalizeRole(req.user.role);
+        const normalizedAllowed = rolesArray.map(r => normalizeRole(r));
 
         if (normalizedAllowed.includes(normalizedUserRole)) {
             return next();
@@ -49,7 +55,8 @@ const requireRole = (allowedRoles = []) => {
 };
 
 const admin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
+    const role = normalizeRole(req.user && req.user.role);
+    if (role === ROLES.ADMIN) {
         next();
     } else {
         res.status(403).json({ message: 'Not authorized as an admin' });
@@ -57,7 +64,8 @@ const admin = (req, res, next) => {
 };
 
 const adminOrManager = (req, res, next) => {
-    if (req.user && (req.user.role === 'admin' || req.user.role === 'manager')) {
+    const role = normalizeRole(req.user && req.user.role);
+    if (role === ROLES.ADMIN || role === ROLES.MANAGER) {
         next();
     } else {
         res.status(403).json({ message: 'Not authorized as admin or manager' });
@@ -65,7 +73,8 @@ const adminOrManager = (req, res, next) => {
 };
 
 const officerOrAdmin = (req, res, next) => {
-    if (req.user && (req.user.role === 'admin' || req.user.role === 'manager' || req.user.role === 'officer' || req.user.role === 'field_officer')) {
+    const role = normalizeRole(req.user && req.user.role);
+    if (role === ROLES.ADMIN || role === ROLES.MANAGER || role === ROLES.OFFICER) {
         next();
     } else {
         res.status(403).json({ message: 'Not authorized as staff/officer or admin' });
@@ -73,7 +82,8 @@ const officerOrAdmin = (req, res, next) => {
 };
 
 const citizenOnly = (req, res, next) => {
-    if (req.user && req.user.role === 'citizen') {
+    const role = normalizeRole(req.user && req.user.role);
+    if (role === ROLES.CITIZEN) {
         next();
     } else {
         res.status(403).json({ message: 'Access restricted to citizens' });

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator
 import { StatusBar } from 'expo-status-bar';
 import { fetchDutyQueue } from '../services/grievanceService';
 import { getRoleTheme } from '../theme/roleTheme';
+import { normalizeRole, ROLES } from '../utils/roleHelper';
 
 interface HomeScreenProps {
   user: any;
@@ -18,11 +19,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const role = user?.role || 'citizen';
-  const isOfficer = role === 'officer' || role === 'field_officer';
-  const isManager = role === 'manager';
-  const isAdmin = role === 'admin';
-  const isCitizen = !isOfficer && !isManager && !isAdmin;
+  const role = normalizeRole(user?.role);
+  const isOfficer = role === ROLES.OFFICER;
+  const isManager = role === ROLES.MANAGER;
+  const isAdmin = role === ROLES.ADMIN;
+  const isCitizen = role === ROLES.CITIZEN;
   const theme = getRoleTheme(role);
 
   useEffect(() => {
@@ -43,18 +44,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
     try {
       const res = await fetchDutyQueue();
       if (res.data) {
-        const userRole = user.role;
+        const userRole = normalizeRole(user.role);
         let queue: any[] = [];
         let active = 0;
 
-        if (userRole === 'admin') {
+        if (userRole === ROLES.ADMIN) {
           queue = res.data.systemBreached || [];
           active = (res.data.healthSummary?.open || 0) + (res.data.healthSummary?.inProgress || 0);
           setExtraCount(res.data.breachedCount || queue.length);
-        } else if (userRole === 'officer' || userRole === 'field_officer') {
+        } else if (userRole === ROLES.OFFICER) {
           queue = res.data.myQueue || [];
           active = res.data.myQueueCount ?? queue.length;
-        } else if (userRole === 'manager') {
+        } else if (userRole === ROLES.MANAGER) {
           queue = res.data.unassignedInScope || [];
           active = res.data.unassignedCount ?? queue.length;
           setExtraCount(res.data.breachingCount || 0);
@@ -115,7 +116,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
           <View style={[styles.heroCard, { borderLeftColor: theme.primary, borderColor: theme.badgeBorder, backgroundColor: theme.badgeBg }]}>
             <Text style={styles.heroTitle}>System Administration Portal</Text>
             <Text style={styles.heroSub}>
-              City-wide municipal grievance metrics, SLA breach monitoring, staff directory & audit controls.
+              City-wide municipal grievance metrics, delayed complaint monitoring, staff directory & audit controls.
             </Text>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
               <TouchableOpacity
@@ -136,7 +137,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
           <View style={[styles.heroCard, { borderLeftColor: theme.primary, borderColor: theme.badgeBorder, backgroundColor: theme.badgeBg }]}>
             <Text style={styles.heroTitle}>Civic Manager Oversight</Text>
             <Text style={styles.heroSub}>
-              Department Scope: <Text style={{ color: '#F8FAFC', fontWeight: 'bold' }}>{user?.scope || 'All Categories'}</Text>. Review unassigned tickets, assign field officers, and monitor SLA breaches.
+              Department Scope: <Text style={{ color: '#F8FAFC', fontWeight: 'bold' }}>{user?.scope || 'All Categories'}</Text>. Review unassigned tickets, assign field officers, and monitor delayed complaints.
             </Text>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
               <TouchableOpacity
@@ -192,7 +193,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
           {(isAdmin || isManager) && (
             <View style={[styles.statTile, { borderLeftColor: '#EF4444' }]}>
               <Text style={[styles.statNumber, { color: '#F87171' }]}>{extraCount}</Text>
-              <Text style={styles.statLabel}>{isAdmin ? 'SLA Breached' : 'Breaching Scope'}</Text>
+              <Text style={styles.statLabel}>{isAdmin ? 'Delayed' : 'Delayed in Scope'}</Text>
             </View>
           )}
         </View>
@@ -201,7 +202,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onNavigate, onLogo
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
             {isAdmin
-              ? '🚨 Breached SLA Tickets'
+              ? '🚨 Delayed Complaints'
               : isManager
               ? '📋 Unassigned Tickets in Scope'
               : isOfficer

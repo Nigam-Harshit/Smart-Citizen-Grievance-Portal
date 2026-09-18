@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import Topbar from '../../components/Topbar';
 import API from '../../utils/api';
+import AuthContext from '../../context/AuthContext';
+import { formatRoleLabel, normalizeRole } from '../../utils/roleHelper';
 
 const GrievanceDetail = () => {
     const { id } = useParams();
@@ -19,10 +21,18 @@ const GrievanceDetail = () => {
     const [photoMetadata, setPhotoMetadata] = useState(null);
     const [lightboxOpen, setLightboxOpen] = useState(false);
 
+    const { user } = useContext(AuthContext);
+
     // Timeline Post Form State
     const [newNote, setNewNote] = useState('');
-    const [noteType, setNoteType] = useState('Citizen Response');
+    const [actorRole, setActorRole] = useState('Citizen');
     const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (user?.role) {
+            setActorRole(formatRoleLabel(user.role));
+        }
+    }, [user?.role]);
 
     const fetchDetails = useCallback(async () => {
         try {
@@ -88,8 +98,10 @@ const GrievanceDetail = () => {
         setSubmitting(true);
         try {
             await API.post(`/api/grievance-updates/${id}`, {
-                type: noteType,
-                notes: newNote
+                message: newNote,
+                notes: newNote,
+                authorRole: normalizeRole(actorRole),
+                type: actorRole
             });
             setNewNote('');
             fetchDetails();
@@ -259,10 +271,10 @@ const GrievanceDetail = () => {
                             </div>
 
                             <div>
-                                <label style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 'bold' }}>SLA RESOLUTION TARGET</label>
+                                <label style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 'bold' }}>EXPECTED RESOLUTION TIME</label>
                                 <div className="mono-data" style={{ color: isOverdue ? 'var(--signal-red)' : 'var(--signal-green)', marginTop: '4px', fontWeight: 'bold' }}>
                                     {new Date(grievance.deadline).toLocaleString()}
-                                    {isOverdue && <span style={{ marginLeft: '6px' }}>⚠️ OVERDUE BREACH</span>}
+                                    {isOverdue && <span style={{ marginLeft: '6px' }}>⚠️ DELAYED</span>}
                                 </div>
                             </div>
 
@@ -386,14 +398,14 @@ const GrievanceDetail = () => {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <select
-                                    value={noteType}
-                                    onChange={(e) => setNoteType(e.target.value)}
+                                    value={actorRole}
+                                    onChange={(e) => setActorRole(e.target.value)}
                                     style={{ width: '180px', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
                                 >
-                                    <option value="Citizen Response">Citizen Response</option>
-                                    <option value="Officer Field Note">Officer Field Note</option>
-                                    <option value="Status Update">Status Update</option>
-                                    <option value="Escalation">Escalation</option>
+                                    <option value="Citizen">Citizen</option>
+                                    <option value="Field Officer">Field Officer</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="Administrator">Administrator</option>
                                 </select>
 
                                 <button
@@ -414,27 +426,38 @@ const GrievanceDetail = () => {
                                     No timeline logs posted yet.
                                 </div>
                             ) : (
-                                updates.map(u => (
-                                    <div key={u._id} style={{
-                                        padding: '1rem',
-                                        borderRadius: '10px',
-                                        background: 'rgba(16, 24, 38, 0.6)',
-                                        border: '1px solid var(--glass-border)',
-                                        borderLeft: u.type === 'Officer Field Note' ? '3px solid var(--signal-blue)' : u.type === 'Escalation' ? '3px solid var(--signal-red)' : '3px solid var(--accent-amber)'
-                                    }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                                            <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                                                {u.userId?.name || 'User'} <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>({u.type})</span>
-                                            </span>
-                                            <span className="mono-data" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                                {new Date(u.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
+                                updates.map(u => {
+                                    const authorName = u.authorName || u.userId?.name || 'User';
+                                    const roleDisplay = formatRoleLabel(u.authorRole || u.userId?.role || u.type);
+                                    const messageText = u.message || u.notes || '';
+                                    const borderColor = roleDisplay === 'Field Officer'
+                                        ? 'var(--signal-blue)'
+                                        : roleDisplay === 'Administrator' || roleDisplay === 'Manager'
+                                            ? 'var(--signal-green)'
+                                            : 'var(--accent-amber)';
+
+                                    return (
+                                        <div key={u._id} style={{
+                                            padding: '1rem',
+                                            borderRadius: '10px',
+                                            background: 'rgba(16, 24, 38, 0.6)',
+                                            border: '1px solid var(--glass-border)',
+                                            borderLeft: `3px solid ${borderColor}`
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                                                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                                                    {authorName} <span style={{ color: 'var(--accent-amber)', fontWeight: '500' }}>({roleDisplay})</span>
+                                                </span>
+                                                <span className="mono-data" style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                                    {new Date(u.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                                </span>
+                                            </div>
+                                            <p style={{ margin: '0', color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: '1.4' }}>
+                                                {messageText}
+                                            </p>
                                         </div>
-                                        <p style={{ margin: '0', color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: '1.4' }}>
-                                            {u.notes}
-                                        </p>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </div>

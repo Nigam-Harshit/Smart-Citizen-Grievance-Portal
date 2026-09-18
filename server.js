@@ -42,9 +42,20 @@ app.use('/api/audit', require('./routes/auditRoutes'));
 app.use('/api/admin-maintenance', require('./routes/maintenanceRoutes'));
 
 // Backward-compatible route aliases
+// Backward-compatible route aliases & direct administrative endpoints
 app.use('/api/customers', require('./routes/citizenRoutes'));
 app.use('/api/reports', require('./routes/grievanceRoutes'));
 app.use('/api/interactions', require('./routes/grievanceUpdateRoutes'));
+app.use('/api/audit-logs', require('./routes/auditRoutes'));
+app.use('/api/admin/audit-logs', require('./routes/auditRoutes'));
+
+const { protect: serverProtect, adminOrManager: serverAdminOrManager } = require('./middleware/authMiddleware');
+const { generateInsights: serverGenInsights, getInsights: serverGetInsights } = require('./controllers/grievanceController');
+
+app.post('/admin/risk-analysis', serverProtect, serverAdminOrManager, serverGenInsights);
+app.get('/admin/risk-analysis', serverProtect, serverAdminOrManager, serverGetInsights);
+app.post('/api/admin/risk-analysis', serverProtect, serverAdminOrManager, serverGenInsights);
+app.get('/api/admin/risk-analysis', serverProtect, serverAdminOrManager, serverGetInsights);
 
 // Lightweight health check endpoint for external monitoring & keep-alive
 app.get('/api/health', (req, res) => {

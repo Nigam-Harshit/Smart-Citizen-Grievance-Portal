@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Citizen = require('../models/Citizen');
 const jwt = require('jsonwebtoken');
 const { logAudit } = require('./auditController');
+const { normalizeRole } = require('../utils/roleHelper');
 
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -90,6 +91,9 @@ const createStaffUser = async (req, res) => {
 
         const validRoles = ['admin', 'manager', 'officer', 'field_officer'];
         if (!validRoles.includes(role)) {
+        const canonicalRole = normalizeRole(role);
+        const validStaffRoles = ['admin', 'manager', 'officer'];
+        if (!validStaffRoles.includes(canonicalRole)) {
             return res.status(400).json({ message: 'Invalid role for staff creation' });
         }
 
@@ -105,6 +109,7 @@ const createStaffUser = async (req, res) => {
             password,
             phone: phone || '',
             role: role === 'field_officer' ? 'officer' : role,
+            role: canonicalRole,
             scope: scope || 'All'
         });
 
@@ -150,6 +155,7 @@ const loginUser = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                role: normalizeRole(user.role),
                 scope: user.scope || 'All',
                 linkedCitizenId: user.linkedCitizenId,
                 token: generateToken(user._id)
@@ -172,6 +178,7 @@ const getMe = async (req, res) => {
             phone: req.user.phone,
             notifications: req.user.notifications,
             role: req.user.role,
+            role: normalizeRole(req.user.role),
             scope: req.user.scope || 'All',
             linkedCitizenId: req.user.linkedCitizenId
         };
@@ -295,6 +302,7 @@ const updateProfile = async (req, res) => {
                 phone: updatedUser.phone,
                 notifications: updatedUser.notifications,
                 role: updatedUser.role,
+                role: normalizeRole(updatedUser.role),
                 scope: updatedUser.scope || 'All',
                 linkedCitizenId: updatedUser.linkedCitizenId,
                 token: generateToken(updatedUser._id)

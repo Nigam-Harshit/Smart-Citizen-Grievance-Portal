@@ -17,6 +17,23 @@ const getDashboardStats = async (req, res) => {
             status: { $in: ['Open', 'In Progress'] }
         });
 
+        const openCount = await Grievance.countDocuments({
+            ...grievanceQuery,
+            status: 'Open',
+            assignedTo: null
+        });
+
+        const assignedCount = await Grievance.countDocuments({
+            ...grievanceQuery,
+            status: 'Open',
+            assignedTo: { $ne: null }
+        });
+
+        const inProgressCount = await Grievance.countDocuments({
+            ...grievanceQuery,
+            status: 'In Progress'
+        });
+
         const resolvedGrievances = await Grievance.countDocuments({
             ...grievanceQuery,
             status: 'Resolved'
@@ -27,6 +44,15 @@ const getDashboardStats = async (req, res) => {
             status: { $ne: 'Resolved' },
             deadline: { $lt: new Date() }
         });
+
+        // Exact complaint status distribution for management analytics
+        const statusDistribution = [
+            { status: 'Open', count: openCount },
+            { status: 'Assigned', count: assignedCount },
+            { status: 'In Progress', count: inProgressCount },
+            { status: 'Resolved', count: resolvedGrievances },
+            { status: 'Delayed', count: overdueCount }
+        ];
 
         const highRiskCitizens = await Citizen.countDocuments({
             escalationRisk: 'High'
@@ -44,6 +70,7 @@ const getDashboardStats = async (req, res) => {
         ]);
 
         // Status breakdown aggregation
+        // Status breakdown aggregation (legacy)
         const grievanceStatusDistribution = await Grievance.aggregate([
             ...(Object.keys(grievanceQuery).length > 0 ? [{ $match: grievanceQuery }] : []),
             {
@@ -91,6 +118,33 @@ const getDashboardStats = async (req, res) => {
             });
             avgResolutionTimeHours = Math.round((totalResolutionHours / resolvedDocs.length) * 10) / 10;
         }
+        // Real Average Resolution Time computation (in hours) via database aggregation
+        const resTimeAgg = await Grievance.aggregate([
+            {
+                $match: {
+                    ...grievanceQuery,
+                    status: 'Resolved',
+                    resolvedAt: { $exists: true, $ne: null }
+                }
+            },
+            {
+                $project: {
+                    durationHours: {
+                        $divide: [{ $subtract: ["$resolvedAt", "$createdAt"] }, 1000 * 60 * 60]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    avgHours: { $avg: "$durationHours" }
+                }
+            }
+        ]);
+
+        const avgResolutionTimeHours = resTimeAgg.length > 0 && resTimeAgg[0].avgHours
+            ? Math.round(resTimeAgg[0].avgHours * 10) / 10
+            : 0;
 
         res.status(200).json({
             totalCitizens,
@@ -98,8 +152,10 @@ const getDashboardStats = async (req, res) => {
             activeGrievances,
             resolvedGrievances,
             overdueCount,
+            delayedCount: overdueCount,
             highRiskCitizens,
             avgResolutionTimeHours,
+            statusDistribution,
             categoryDistribution,
             grievanceStatusDistribution,
             priorityDistribution,
@@ -115,9 +171,9 @@ const getDashboardStats = async (req, res) => {
 
 /**
  * Task 5: Role-Scoped Duty Queue Widget Handler
- * Field Officer: Tickets assigned to me, not resolved, sorted by SLA deadline ascending
- * Manager: Unassigned tickets in scope + In-progress tickets in scope approaching or past SLA breach
- * Admin: All SLA breached tickets system-wide + system health summary
+ * Field Officer: Tickets assigned to me, not resolved, sorted by expected resolution deadline ascending
+ * Manager: Unassigned tickets in scope + In-progress tickets in scope approaching or past expected resolution time
+ * Admin: All delayed tickets system-wide + system health summary
  */
 const getDutyQueue = async (req, res) => {
     try {

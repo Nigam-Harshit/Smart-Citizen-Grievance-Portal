@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Grievance = require('../models/Grievance');
 const Citizen = require('../models/Citizen');
 const Insight = require('../models/Insight');
@@ -9,6 +10,7 @@ const identityHelper = require('../utils/identityHelper');
 const imageProcessor = require('../utils/imageProcessor');
 const storageService = require('../utils/storageService');
 const costGovernorService = require('../services/costGovernorService');
+const { normalizeRole, formatRoleLabel } = require('../utils/roleHelper');
 
 const getGrievances = async (req, res) => {
     try {
@@ -88,7 +90,8 @@ const getGrievanceById = async (req, res) => {
             return res.status(401).json({ message: 'Authentication required' });
         }
 
-        if (!req.params.id || typeof req.params.id !== 'string' || req.params.id.trim() === '') {
+        const id = req.params.id ? String(req.params.id).trim() : '';
+        if (!id) {
             return res.status(404).json({ message: 'Grievance not found' });
         }
 
@@ -138,7 +141,8 @@ const getGrievancePhoto = async (req, res) => {
             return res.status(401).json({ message: 'Authentication required' });
         }
 
-        if (!req.params.id || typeof req.params.id !== 'string' || req.params.id.trim() === '') {
+        const id = req.params.id ? String(req.params.id).trim() : '';
+        if (!id) {
             return res.status(404).json({ message: 'Grievance not found' });
         }
 
@@ -301,7 +305,7 @@ const createGrievance = async (req, res) => {
             };
         }
 
-        // Calculate SLA deadline based on priority
+        // Calculate expected resolution deadline based on priority
         const now = new Date();
         let deadline = new Date();
         const prio = priority || 'Medium';
@@ -357,11 +361,24 @@ const createGrievance = async (req, res) => {
         }
 
         // Create initial update timeline entry
+        // Create initial update timeline entry with canonical author fields
+        const authorId = req.user ? req.user._id : citizenId;
+        const authorName = req.user ? req.user.name : citizenName;
+        const authorRole = req.user ? normalizeRole(req.user.role) : 'citizen';
+        const initialNote = `Grievance submitted under ${category} at ${location}. Priority set to ${prio}.${attachmentData ? ' Photographic evidence attached.' : ''}`;
+
         await GrievanceUpdate.create({
             grievanceId: grievance._id,
             userId: req.user ? req.user._id : citizenId,
             type: 'Citizen Response',
             notes: `Grievance submitted under ${category} at ${location}. Priority set to ${prio}.${attachmentData ? ' Photographic evidence attached.' : ''}`,
+            authorId,
+            authorName,
+            authorRole,
+            message: initialNote,
+            userId: authorId,
+            type: formatRoleLabel(authorRole),
+            notes: initialNote,
             statusChange: 'Open'
         });
 
@@ -369,6 +386,7 @@ const createGrievance = async (req, res) => {
 
         res.status(201).json(grievance);
     } catch (error) {
+        // Compensating transaction: purge R2 object if database save failed
         const isClientValidation = error.name === 'ValidationError' ||
             error.code === 'MALFORMED_IMAGE' ||
             error.code === 'FILE_TOO_LARGE' ||
@@ -392,8 +410,10 @@ const createGrievance = async (req, res) => {
         if (uploadedStorageKey) {
             try {
                 await storageService.deleteFromR2(uploadedStorageKey);
+                console.warn(`[Compensating Transaction] Purged orphaned R2 asset: ${uploadedStorageKey}`);
                 console.warn(`[Compensating Transaction] Purged orphaned storage asset: ${uploadedStorageKey}`);
             } catch (cleanupErr) {
+                console.error(`[CRITICAL] Failed to purge orphaned R2 asset ${uploadedStorageKey}: ${cleanupErr.message}`);
                 console.error(`[CRITICAL] Failed to purge orphaned storage asset ${uploadedStorageKey}: ${cleanupErr.message}`);
                 console.error(`[ORPHAN_RECONCILIATION_REQUIRED] ${JSON.stringify({
                     storageKey: uploadedStorageKey,
@@ -431,7 +451,8 @@ const updateGrievance = async (req, res) => {
             return res.status(401).json({ message: 'Authentication required' });
         }
 
-        if (!req.params.id || typeof req.params.id !== 'string' || req.params.id.trim() === '') {
+        const id = req.params.id ? String(req.params.id).trim() : '';
+        if (!id) {
             return res.status(404).json({ message: 'Grievance not found' });
         }
 
@@ -485,6 +506,14 @@ const updateGrievance = async (req, res) => {
             }
         }
 
+        // Permission Boundary Check: Officers and Citizens CANNOT assign or reassign officers
+        if (req.body.assignedTo !== undefined) {
+            const userRole = normalizeRole(req.user.role);
+            if (userRole === 'officer' || userRole === 'citizen') {
+                return res.status(403).json({ message: 'Access forbidden: Only administrators and managers can assign or reassign field officers' });
+            }
+        }
+
         let assignedOfficerObj = null;
         if (updateData.assignedTo && updateData.assignedTo !== String(grievance.assignedTo)) {
             const officer = await User.findById(updateData.assignedTo);
@@ -507,11 +536,16 @@ const updateGrievance = async (req, res) => {
          .populate('assignedTo', 'name email role scope');
 
         if (assignedOfficerObj) {
+            const officerNote = `Assigned to field officer ${assignedOfficerObj.name}.`;
             await GrievanceUpdate.create({
                 grievanceId: grievance._id,
+                authorId: req.user._id,
+                authorName: req.user.name,
+                authorRole: normalizeRole(req.user.role),
+                message: officerNote,
                 userId: req.user._id,
                 type: 'Officer Field Note',
-                notes: `Assigned to field officer ${assignedOfficerObj.name}.`,
+                notes: officerNote,
                 statusChange: updatedGrievance.status
             });
 
@@ -519,11 +553,16 @@ const updateGrievance = async (req, res) => {
         }
 
         if (updateData.status && updateData.status !== oldStatus) {
+            const statusNote = `Status updated from ${oldStatus} to ${updateData.status}.`;
             await GrievanceUpdate.create({
                 grievanceId: grievance._id,
+                authorId: req.user._id,
+                authorName: req.user.name,
+                authorRole: normalizeRole(req.user.role),
+                message: statusNote,
                 userId: req.user._id,
                 type: 'Status Update',
-                notes: `Status updated from ${oldStatus} to ${updateData.status}.`,
+                notes: statusNote,
                 statusChange: updateData.status
             });
 
@@ -559,23 +598,27 @@ const updateGrievance = async (req, res) => {
 };
 
 /**
- * Task 4: Explainable Heuristic SLA Escalation Risk Engine
- * Inputs:
- * - Ticket Priority (Critical=40, High=30, Medium=15, Low=5)
- * - SLA Overdue Hours (Hours past deadline * 2)
- * - Category Weighting (Water Supply/Sanitation/Public Safety = 10, others = 0)
- * - Citizen Unresolved Complaints Count (* 5)
- *
- * Scoring Output:
- * - Total Score >= 60 -> 'Critical' (Urgent supervisor intervention & officer dispatch)
- * - Total Score 35-59 -> 'High' (Imminent SLA breach)
- * - Total Score 15-34 -> 'Medium' (Moderate delay/inactivity)
- * - Total Score < 15  -> 'Low' (Normal operational window)
+ * Complaint Risk Analysis Engine
+ * 
+ * Deterministic, rule-based heuristic scoring engine (non-ML) combining 6 operational inputs:
+ * 1. Complaint Age: +5 to +25 points based on open duration (24h/48h/72h thresholds).
+ * 2. Priority Level: Critical (+30), High (+20), Medium (+10), Low (+5).
+ * 3. Municipal Category: Essential civic services (+15), Infrastructure (+10), Standard (+5).
+ * 4. Assignment Status: Unassigned officer >= 12h (+15) or awaiting assignment (+5).
+ * 5. Citizen Follow-ups: +5 points per citizen inquiry (capped at +20).
+ * 6. Pending Duration / Expected Resolution: Past expected resolution time (+25), or deadline imminent (+15).
+ * 
+ * Output:
+ * - numericScore: 0 to 100 integer
+ * - riskScore / riskLevel: 'Critical' (80-100), 'High' (60-79), 'Medium' (35-59), 'Low' (0-34)
+ * - reasons: itemized explanation of every contributing operational indicator
+ * - recommendedAction: clear operational guidance
  */
 const generateInsights = async (req, res) => {
     try {
         const citizens = await Citizen.find();
         const insights = [];
+        const now = new Date();
 
         for (const citizen of citizens) {
             const citizenGrievances = await Grievance.find({
@@ -584,60 +627,125 @@ const generateInsights = async (req, res) => {
             });
 
             const openCount = citizenGrievances.length;
-            let highestCalculatedScore = 0;
-            let riskFactors = [];
+            let highestScore = 0;
             let dominantCategory = '';
+            let reasons = [];
+
+            if (openCount === 0) {
+                reasons.push('No active grievances filed. All accounts in good standing.');
+            }
 
             for (const g of citizenGrievances) {
-                let priorityWeight = 5;
-                if (g.priority === 'Critical') priorityWeight = 40;
-                else if (g.priority === 'High') priorityWeight = 30;
-                else if (g.priority === 'Medium') priorityWeight = 15;
+                let ticketScore = 0;
+                const ticketReasons = [];
 
-                let categoryWeight = 0;
-                if (['Water Supply', 'Sanitation', 'Public Safety'].includes(g.category)) {
-                    categoryWeight = 10;
+                // 1. Complaint Age (hours open)
+                const ageHours = Math.max(0, Math.floor((now - new Date(g.createdAt)) / (1000 * 60 * 60)));
+                if (ageHours >= 72) {
+                    ticketScore += 25;
+                    ticketReasons.push(`Complaint open for ${ageHours}h (exceeds 72h aging threshold): +25 pts`);
+                } else if (ageHours >= 48) {
+                    ticketScore += 15;
+                    ticketReasons.push(`Complaint open for ${ageHours}h (exceeds 48h aging threshold): +15 pts`);
+                } else if (ageHours >= 24) {
+                    ticketScore += 10;
+                    ticketReasons.push(`Complaint open for ${ageHours}h (exceeds 24h aging threshold): +10 pts`);
+                } else {
+                    ticketScore += 5;
+                    ticketReasons.push(`Recent complaint filed within past 24h (${ageHours}h open): +5 pts`);
                 }
 
-                let slaOverdueHours = 0;
-                const now = new Date();
-                if (g.deadline && now > new Date(g.deadline)) {
-                    slaOverdueHours = Math.floor((now - new Date(g.deadline)) / (1000 * 60 * 60));
-                }
-
-                // Explicit Heuristic Formula
-                const ticketScore = priorityWeight + (slaOverdueHours * 2) + categoryWeight + (openCount * 5);
-                if (ticketScore > highestCalculatedScore) {
-                    highestCalculatedScore = ticketScore;
-                    dominantCategory = g.category;
-                }
-
+                // 2. Priority Level
                 if (g.priority === 'Critical') {
-                    riskFactors.push(`Critical Priority Ticket: ${g.title}`);
+                    ticketScore += 30;
+                    ticketReasons.push(`Critical Priority Level: +30 pts`);
+                } else if (g.priority === 'High') {
+                    ticketScore += 20;
+                    ticketReasons.push(`High Priority Level: +20 pts`);
+                } else if (g.priority === 'Medium') {
+                    ticketScore += 10;
+                    ticketReasons.push(`Medium Priority Level: +10 pts`);
+                } else {
+                    ticketScore += 5;
+                    ticketReasons.push(`Low Priority Level: +5 pts`);
                 }
-                if (slaOverdueHours > 0) {
-                    riskFactors.push(`SLA Breached by ${slaOverdueHours}h: ${g.title}`);
+
+                // 3. Municipal Category Weight
+                if (['Water Supply', 'Sanitation', 'Public Safety'].includes(g.category)) {
+                    ticketScore += 15;
+                    ticketReasons.push(`Essential civic service category (${g.category}): +15 pts`);
+                } else if (['Roads', 'Roads & Traffic', 'Electricity'].includes(g.category)) {
+                    ticketScore += 10;
+                    ticketReasons.push(`Infrastructure service category (${g.category}): +10 pts`);
+                } else {
+                    ticketScore += 5;
+                    ticketReasons.push(`Standard service category (${g.category}): +5 pts`);
+                }
+
+                // 4. Assignment Status
+                if (!g.assignedTo) {
+                    if (ageHours >= 12) {
+                        ticketScore += 15;
+                        ticketReasons.push(`Field officer unassigned after ${ageHours}h: +15 pts`);
+                    } else {
+                        ticketScore += 5;
+                        ticketReasons.push(`Awaiting field officer assignment: +5 pts`);
+                    }
+                }
+
+                // 5. Citizen Follow-ups
+                const followups = await GrievanceUpdate.countDocuments({
+                    grievanceId: g._id,
+                    authorRole: 'citizen'
+                });
+                if (followups > 0) {
+                    const followupPoints = Math.min(20, followups * 5);
+                    ticketScore += followupPoints;
+                    ticketReasons.push(`Citizen follow-up inquiries (${followups} submitted): +${followupPoints} pts`);
+                }
+
+                // 6. Pending Duration / Expected Resolution Time
+                if (g.deadline) {
+                    const deadlineDate = new Date(g.deadline);
+                    if (now > deadlineDate) {
+                        const overdueHours = Math.floor((now - deadlineDate) / (1000 * 60 * 60));
+                        ticketScore += 25;
+                        ticketReasons.push(`Past expected resolution time by ${overdueHours}h: +25 pts`);
+                    } else {
+                        const hoursRemaining = (deadlineDate - now) / (1000 * 60 * 60);
+                        if (hoursRemaining <= 12) {
+                            ticketScore += 15;
+                            ticketReasons.push(`Expected resolution deadline imminent (${Math.round(hoursRemaining)}h remaining): +15 pts`);
+                        }
+                    }
+                }
+
+                if (ticketScore > highestScore) {
+                    highestScore = ticketScore;
+                    dominantCategory = g.category;
+                    reasons = ticketReasons;
                 }
             }
 
-            if (openCount >= 3) {
-                riskFactors.push(`Multiple Active Complaints (${openCount})`);
+            if (openCount >= 2) {
+                reasons.push(`Multiple active complaints pending for citizen (${openCount})`);
+                highestScore += Math.min(15, (openCount - 1) * 5);
             }
+
+            const numericScore = Math.min(100, Math.max(0, highestScore));
 
             let riskLabel = 'Low';
-            let recommendation = 'Grievance filings are within normal SLA thresholds. Standard resolution workflow active.';
+            let recommendation = 'Routine workflow: Complaint is progressing within normal expected resolution parameters.';
 
-            if (highestCalculatedScore >= 60) {
+            if (numericScore >= 80) {
                 riskLabel = 'Critical';
-                recommendation = `CRITICAL ESCALATION (Score: ${highestCalculatedScore}): SLA breach or high-priority risk in ${dominantCategory || 'service area'}. Urgent officer dispatch & supervisor intervention required.`;
-            } else if (highestCalculatedScore >= 35) {
+                recommendation = `Immediate Manager intervention: Critical delay or risk detected in ${dominantCategory || 'service area'}. Expedite emergency response and initiate direct citizen contact.`;
+            } else if (numericScore >= 60) {
                 riskLabel = 'High';
-                recommendation = `HIGH RISK (Score: ${highestCalculatedScore}): SLA deadline imminent or breached. Assign senior field officer to expedite response.`;
-            } else if (highestCalculatedScore >= 15 || openCount >= 1) {
+                recommendation = `Manager review required: Expected resolution window imminent or delayed in ${dominantCategory || 'service area'}. Reassign or dispatch senior field officer immediately.`;
+            } else if (numericScore >= 35) {
                 riskLabel = 'Medium';
-                recommendation = `MODERATE RISK (Score: ${highestCalculatedScore}): Active complaint pending resolution. Monitor field progress.`;
-            } else {
-                riskFactors.push('No Active SLA Breaches');
+                recommendation = `Standard supervisory monitoring: Active complaint pending field inspection. Ensure assigned officer provides progress updates.`;
             }
 
             citizen.escalationRisk = riskLabel === 'Critical' ? 'High' : riskLabel;
@@ -645,23 +753,29 @@ const generateInsights = async (req, res) => {
 
             let insight = await Insight.findOne({ citizenId: citizen._id });
             if (insight) {
+                insight.numericScore = numericScore;
                 insight.riskScore = riskLabel;
                 insight.recommendation = recommendation;
-                insight.riskFactors = riskFactors;
+                insight.reasons = reasons;
+                insight.riskFactors = reasons;
+                insight.engineType = 'DETERMINISTIC_HEURISTIC';
                 insight.generatedAt = Date.now();
                 await insight.save();
             } else {
                 insight = await Insight.create({
                     citizenId: citizen._id,
+                    numericScore,
                     riskScore: riskLabel,
                     recommendation,
-                    riskFactors
+                    reasons,
+                    riskFactors: reasons,
+                    engineType: 'DETERMINISTIC_HEURISTIC'
                 });
             }
             insights.push(insight);
         }
 
-        await logAudit(req.user._id, 'Run Escalation Risk Engine', 'Executed Heuristic SLA Escalation Risk Engine across citizen accounts.');
+        await auditController.logAudit(req.user._id, 'Run Risk Analysis Engine', 'Executed deterministic rule-based Complaint Risk Analysis Engine.');
 
         res.status(200).json(insights);
     } catch (error) {
@@ -672,9 +786,12 @@ const generateInsights = async (req, res) => {
 
 const getInsights = async (req, res) => {
     try {
-        const insights = await Insight.find().populate('citizenId', 'name email contact address status escalationRisk');
+        const insights = await Insight.find()
+            .populate('citizenId', 'name email contact address status escalationRisk')
+            .sort('-numericScore');
         res.status(200).json(insights);
     } catch (error) {
+        console.error('getInsights error:', error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -686,5 +803,8 @@ module.exports = {
     createGrievance,
     updateGrievance,
     generateInsights,
-    getInsights
+    getInsights,
+    generateRiskAnalysis: generateInsights,
+    getRiskAnalysis: getInsights
 };
+

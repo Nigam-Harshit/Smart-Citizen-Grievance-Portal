@@ -14,7 +14,7 @@ import {
     Tooltip,
     Legend
 } from 'chart.js';
-import { Bar, Line } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 import { Link } from 'react-router-dom';
 import { getRoleTheme } from '../../theme/roleTheme';
 
@@ -90,24 +90,56 @@ const AdminDashboard = () => {
         ]
     };
 
-    const trendData = {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    // Real Complaint Status Distribution Aggregation
+    const statusMap = {
+        'Open': 0,
+        'Assigned': 0,
+        'In Progress': 0,
+        'Resolved': 0,
+        'Delayed': 0
+    };
+
+    if (stats?.statusDistribution && Array.isArray(stats.statusDistribution)) {
+        stats.statusDistribution.forEach(item => {
+            if (statusMap[item.status] !== undefined) {
+                statusMap[item.status] = item.count;
+            }
+        });
+    } else {
+        statusMap['Open'] = stats?.healthSummary?.open || 0;
+        statusMap['In Progress'] = stats?.activeGrievances || 0;
+        statusMap['Resolved'] = stats?.resolvedGrievances || 0;
+        statusMap['Delayed'] = stats?.overdueCount || 0;
+    }
+
+    const statusChartData = {
+        labels: ['Open', 'Assigned', 'In Progress', 'Resolved', 'Delayed'],
         datasets: [
             {
-                label: 'Filings',
-                data: [12, 19, 15, 22, 18, 10, 8],
-                borderColor: '#4A7FBF',
-                backgroundColor: 'rgba(74, 127, 191, 0.15)',
-                tension: 0.3,
-                fill: true
-            },
-            {
-                label: 'Resolutions',
-                data: [8, 14, 12, 19, 16, 9, 7],
-                borderColor: '#4F9D6E',
-                backgroundColor: 'rgba(79, 157, 110, 0.15)',
-                tension: 0.3,
-                fill: true
+                label: 'Complaints',
+                data: [
+                    statusMap['Open'],
+                    statusMap['Assigned'],
+                    statusMap['In Progress'],
+                    statusMap['Resolved'],
+                    statusMap['Delayed']
+                ],
+                backgroundColor: [
+                    'rgba(201, 150, 44, 0.65)',
+                    'rgba(74, 127, 191, 0.65)',
+                    'rgba(147, 51, 234, 0.65)',
+                    'rgba(79, 157, 110, 0.65)',
+                    'rgba(192, 67, 59, 0.65)'
+                ],
+                borderColor: [
+                    '#C9962C',
+                    '#4A7FBF',
+                    '#9333EA',
+                    '#4F9D6E',
+                    '#C0433B'
+                ],
+                borderWidth: 1,
+                borderRadius: 6
             }
         ]
     };
@@ -250,18 +282,18 @@ const AdminDashboard = () => {
                             )}
                         </div>
 
-                        {/* SLA Breaching / Overdue Tickets in Scope */}
+                        {/* Delayed Complaints & Overdue Tickets in Scope */}
                         <div className="glass-panel" style={{ padding: '1.6rem', borderRadius: '14px', borderLeft: '4px solid var(--signal-red)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontFamily: 'Fraunces, serif' }}>
-                                    ⚠️ SLA Breaching & Overdue ({dutyQueue?.breachingCount || 0})
+                                    ⚠️ Delayed Complaints & Overdue ({dutyQueue?.breachingCount || 0})
                                 </h3>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--signal-red)', fontWeight: 'bold' }}>SLA Alerts</span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--signal-red)', fontWeight: 'bold' }}>Attention Required</span>
                             </div>
 
                             {dutyQueue?.breachingOrOverdueInScope?.length === 0 ? (
                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', padding: '1rem 0' }}>
-                                    No SLA breaches or warnings in your scope!
+                                    No delayed complaints or warnings in your scope!
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', maxHeight: '280px', overflowY: 'auto' }}>
@@ -278,7 +310,7 @@ const AdminDashboard = () => {
                                                     )}
                                                 </div>
                                                 <div className="mono-data" style={{ fontSize: '0.75rem', color: 'var(--signal-red)', marginTop: '2px' }}>
-                                                    Target: {new Date(g.deadline).toLocaleString()}
+                                                    Expected: {new Date(g.deadline).toLocaleString()}
                                                 </div>
                                             </div>
                                             <Link to={`/citizen/grievance/${g._id}`} className="btn-municipal-glass" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>
@@ -295,7 +327,7 @@ const AdminDashboard = () => {
                     <div className="glass-panel" style={{ padding: '1.6rem', borderRadius: '14px', marginBottom: '2rem', borderLeft: '4px solid var(--signal-red)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.6rem' }}>
                             <h3 style={{ margin: 0, fontSize: '1.1rem', fontFamily: 'Fraunces, serif' }}>
-                                🚨 System-Wide SLA Breached Queue ({dutyQueue?.breachedCount || 0})
+                                🚨 System-Wide Delayed Complaints Queue ({dutyQueue?.breachedCount || 0})
                             </h3>
                             <span className="mono-badge" style={{ background: 'rgba(192, 67, 59, 0.15)', color: 'var(--signal-red)', padding: '0.3rem 0.8rem', borderRadius: '12px', fontWeight: 'bold', fontSize: '0.8rem' }}>
                                 System Health Monitor
@@ -304,7 +336,7 @@ const AdminDashboard = () => {
 
                         {dutyQueue?.systemBreached?.length === 0 ? (
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', padding: '1rem 0', textAlign: 'center' }}>
-                                🎉 All grievances system-wide are within active SLA compliance windows!
+                                🎉 All grievances system-wide are within expected resolution timeframes!
                             </div>
                         ) : (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '0.8rem' }}>
@@ -323,7 +355,7 @@ const AdminDashboard = () => {
                                             Category: <span style={{ color: 'var(--text-primary)' }}>{g.category}</span> • Assigned: {g.assignedTo?.name || 'Unassigned'}
                                         </div>
                                         <div className="mono-data" style={{ fontSize: '0.75rem', color: 'var(--signal-red)', marginTop: '4px', fontWeight: 'bold' }}>
-                                            ⚠️ SLA Breached: {new Date(g.deadline).toLocaleDateString()}
+                                            ⚠️ Delayed: {new Date(g.deadline).toLocaleDateString()}
                                         </div>
                                     </div>
                                 ))}
@@ -421,8 +453,8 @@ const AdminDashboard = () => {
                     </div>
 
                     <div className="glass-panel" style={{ padding: '1.8rem', borderRadius: '14px' }}>
-                        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Weekly Filing vs Resolution Velocity</h3>
-                        <Line data={trendData} options={chartOptions} />
+                        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Complaint Status Distribution</h3>
+                        <Bar data={statusChartData} options={chartOptions} />
                     </div>
                 </div>
 

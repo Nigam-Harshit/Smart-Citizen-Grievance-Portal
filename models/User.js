@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { normalizeRole, CANONICAL_ROLES } = require('../utils/roleHelper');
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -28,7 +29,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'manager', 'officer', 'field_officer', 'citizen'],
+    enum: CANONICAL_ROLES,
     default: 'citizen'
   },
   scope: {
@@ -49,6 +50,12 @@ const userSchema = new mongoose.Schema({
   resetPasswordExpire: Date
 }, {
   timestamps: true
+});
+
+userSchema.pre('validate', function () {
+  if (this.role) {
+    this.role = normalizeRole(this.role);
+  }
 });
 
 userSchema.pre('save', async function () {

@@ -43,7 +43,7 @@ const Landing = () => {
                 </h1>
 
                 <p style={{ fontSize: '1.15rem', color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 auto', maxWidth: '750px' }}>
-                    Streamlined public complaint submission, transparent 4-step resolution lifecycles, field officer dispatch, priority SLA tracking, and explainable SLA escalation risk analytics.
+                    Streamlined public complaint submission, transparent 4-step resolution lifecycles, field officer dispatch, expected resolution tracking, and deterministic complaint risk analysis.
                 </p>
 
                 {/* CTAs */}
@@ -80,7 +80,7 @@ const Landing = () => {
                     <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🧹</div>
                     <h3 style={{ marginBottom: '0.5rem', fontSize: '1.15rem' }}>Citizen Complaint Submission</h3>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.55' }}>
-                        Fast reporting across categories (Sanitation, Water Supply, Electricity, Roads, Safety) with location landmarks and automated SLA target calculations.
+                        Fast reporting across categories (Sanitation, Water Supply, Electricity, Roads, Safety) with location landmarks and automated expected resolution calculations.
                     </p>
                 </div>
 
@@ -94,17 +94,17 @@ const Landing = () => {
 
                 <div className="glass-panel glass-card-interactive stagger-in" style={{ padding: '2rem', borderRadius: '16px' }}>
                     <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>⏰</div>
-                    <h3 style={{ marginBottom: '0.5rem', fontSize: '1.15rem' }}>SLA Target Monitoring</h3>
+                    <h3 style={{ marginBottom: '0.5rem', fontSize: '1.15rem' }}>Expected Resolution Monitoring</h3>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.55' }}>
-                        Priority-based resolution windows (Critical=24h, High=3d, Medium=7d, Low=14d) with automated daily SLA breach scanning and escalation alerts.
+                        Priority-based resolution windows (Critical=24h, High=3d, Medium=7d, Low=14d) with automated delayed complaint scanning and attention alerts.
                     </p>
                 </div>
 
                 <div className="glass-panel glass-card-interactive stagger-in" style={{ padding: '2rem', borderRadius: '16px' }}>
-                    <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>✨</div>
-                    <h3 style={{ marginBottom: '0.5rem', fontSize: '1.15rem' }}>Explainable SLA Risk Matrix</h3>
+                    <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>⚖️</div>
+                    <h3 style={{ marginBottom: '0.5rem', fontSize: '1.15rem' }}>Complaint Risk Analysis Engine</h3>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.55' }}>
-                        Transparent heuristic scoring combining ticket priority, overdue breach hours, category weighting, and unresolved volume to generate supervisor dispatch recommendations.
+                        Transparent heuristic scoring combining ticket priority, overdue hours, category weighting, and unresolved volume to generate supervisor dispatch recommendations.
                     </p>
                 </div>
             </section>

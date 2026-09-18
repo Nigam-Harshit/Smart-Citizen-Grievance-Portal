@@ -137,7 +137,7 @@ const Sidebar = () => {
                             <li style={{ marginBottom: '0.3rem' }}><Link title="Command Center" to="/admin" style={getLinkStyle('/admin')}><span>📊</span> {!collapsed && "Command Center"}</Link></li>
                             <li style={{ marginBottom: '0.3rem' }}><Link title="Master Grievances" to="/admin/grievances" style={getLinkStyle('/admin/grievances')}><span>📑</span> {!collapsed && "Master Grievances"}</Link></li>
                             <li style={{ marginBottom: '0.3rem' }}><Link title="Citizens Directory" to="/admin/citizens" style={getLinkStyle('/admin/citizens')}><span>👥</span> {!collapsed && "Citizens Directory"}</Link></li>
-                            <li style={{ marginBottom: '0.3rem' }}><Link title="Escalation Insights" to="/admin/insights" style={getLinkStyle('/admin/insights')}><span>✨</span> {!collapsed && "Escalation Engine"}</Link></li>
+                            <li style={{ marginBottom: '0.3rem' }}><Link title="Risk Analysis Engine" to="/admin/insights" style={getLinkStyle('/admin/insights')}><span>⚖️</span> {!collapsed && "Risk Analysis Engine"}</Link></li>
                             {user.role === 'admin' && (
                                 <li style={{ marginBottom: '0.3rem' }}><Link title="Audit Logs" to="/admin/audit" style={getLinkStyle('/admin/audit')}><span>🛡️</span> {!collapsed && "System Audit Logs"}</Link></li>
                             )}

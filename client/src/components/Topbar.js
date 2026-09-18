@@ -238,7 +238,7 @@ const Topbar = ({ title }) => {
                             </h4>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.82rem' }}>
                                 <div style={{ background: 'rgba(192, 67, 59, 0.12)', padding: '0.6rem 0.8rem', borderRadius: '6px', borderLeft: '3px solid var(--signal-red)' }}>
-                                    <strong style={{ color: 'var(--signal-red)' }}>SLA Alert:</strong> Resolution deadline breached for 2 critical complaints.
+                                    <strong style={{ color: 'var(--signal-red)' }}>Attention Required:</strong> Resolution deadline delayed for 2 critical complaints.
                                 </div>
                                 <div style={{ background: 'var(--accent-amber-dim)', padding: '0.6rem 0.8rem', borderRadius: '6px', borderLeft: '3px solid var(--accent-amber)' }}>
                                     <strong style={{ color: 'var(--accent-amber)' }}>Task:</strong> 3 Field inspections scheduled today.

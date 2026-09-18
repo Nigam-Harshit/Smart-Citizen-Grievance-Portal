@@ -77,7 +77,7 @@ const OfficerDashboard = () => {
                             </span>
                         </div>
                         <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '650px' }}>
-                            You have <strong style={{ color: roleTheme.secondary }}>{myQueueCount} active ticket(s)</strong> in your assigned duty queue, ordered by SLA urgency.
+                            You have <strong style={{ color: roleTheme.secondary }}>{myQueueCount} active ticket(s)</strong> in your assigned duty queue, ordered by resolution urgency.
                         </p>
                     </div>
                     <Link to="/officer/grievances" style={{
@@ -127,19 +127,19 @@ const OfficerDashboard = () => {
                             {criticalCount}
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-                            Emergency 24h SLA targets
+                            Emergency 24h expected resolution
                         </div>
                     </div>
 
                     <div className="glass-card stagger-in" style={{ padding: '1.5rem', borderRadius: '14px', borderLeft: '3px solid var(--accent-amber)' }}>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            SLA BREACHED / OVERDUE
+                            DELAYED COMPLAINTS
                         </div>
                         <div className="mono-number" style={{ fontSize: '2.4rem', color: 'var(--accent-amber)', marginTop: '0.2rem' }}>
                             {overdueCount}
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-                            Overdue deadline breach
+                            Past expected resolution time
                         </div>
                     </div>
 
@@ -161,7 +161,7 @@ const OfficerDashboard = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.8rem' }}>
                         <div>
                             <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontFamily: 'Fraunces, serif' }}>
-                                📋 My Duty Queue (Sorted by SLA Target Deadline)
+                                📋 My Duty Queue (Sorted by Expected Resolution Time)
                             </h3>
                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                                 Real-time server-scoped ticket list assigned specifically to {user?.name}
@@ -212,7 +212,7 @@ const OfficerDashboard = () => {
                                                 <span>📍 {g.location}</span>
                                                 <span>🏷️ {g.category}</span>
                                                 <span className="mono-data" style={{ color: isOverdue ? 'var(--signal-red)' : 'var(--accent-amber)', fontWeight: 'bold' }}>
-                                                    ⏰ Target: {new Date(g.deadline).toLocaleString()} {isOverdue ? '⚠️ OVERDUE' : ''}
+                                                    ⏰ Expected: {new Date(g.deadline).toLocaleString()} {isOverdue ? '⚠️ DELAYED' : ''}
                                                 </span>
                                             </div>
                                         </div>

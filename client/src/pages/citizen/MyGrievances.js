@@ -62,7 +62,7 @@ const MyGrievances = () => {
                                     <th>Category</th>
                                     <th>Location</th>
                                     <th>Filed On</th>
-                                    <th>Target SLA</th>
+                                    <th>Expected Resolution Time</th>
                                     <th>Status</th>
                                     <th>Action</th>
                                 </tr>

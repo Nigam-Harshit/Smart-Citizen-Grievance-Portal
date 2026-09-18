@@ -156,7 +156,7 @@ const MasterGrievances = () => {
                                     <th>Category</th>
                                     <th>Location</th>
                                     <th>Priority</th>
-                                    <th>SLA Target</th>
+                                    <th>Expected Resolution Time</th>
                                     <th>Status</th>
                                     <th>Assigned Officer</th>
                                     <th>Action</th>

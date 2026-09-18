@@ -91,12 +91,15 @@ export const fetchTimelineUpdates = async (grievanceId: string) => {
 
 export const postTimelineUpdate = async (
   grievanceId: string,
-  notes: string,
-  type: 'Citizen Response' | 'Officer Field Note' | 'Internal Note' = 'Citizen Response'
+  message: string,
+  authorRole?: string,
+  type?: string
 ) => {
   return await requestAPI(`/api/grievance-updates/${grievanceId}`, 'POST', {
-    type,
-    notes,
+    message,
+    notes: message,
+    authorRole,
+    type: type || 'Citizen Response',
   });
 };
 

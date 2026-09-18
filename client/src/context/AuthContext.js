@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from 'react';
 import API from '../utils/api';
+import { normalizeRole } from '../utils/roleHelper';
 
 const AuthContext = createContext();
 
@@ -22,6 +23,7 @@ export const AuthProvider = ({ children }) => {
                     }
                 };
                 const { data } = await API.get('/api/auth/me', config);
+                if (data && data.role) data.role = normalizeRole(data.role);
                 setUser(data);
             } catch (err) {
                 localStorage.removeItem('token');
@@ -34,6 +36,7 @@ export const AuthProvider = ({ children }) => {
     const login = async (email, password) => {
         try {
             const { data } = await API.post('/api/auth/login', { email, password });
+            if (data && data.role) data.role = normalizeRole(data.role);
             localStorage.setItem('token', data.token);
             setUser(data);
             setError(null);
@@ -47,6 +50,7 @@ export const AuthProvider = ({ children }) => {
     const register = async (userData) => {
         try {
             const { data } = await API.post('/api/auth/register', userData);
+            if (data && data.role) data.role = normalizeRole(data.role);
             localStorage.setItem('token', data.token);
             setUser(data);
             setError(null);

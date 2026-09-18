@@ -64,6 +64,7 @@ function App() {
           <Route path="/admin/grievances" element={<ProtectedRoute role={['admin', 'manager']}><Grievances /></ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute role={['admin', 'manager']}><Grievances /></ProtectedRoute>} />
           <Route path="/admin/insights" element={<ProtectedRoute role={['admin', 'manager']}><SmartInsight /></ProtectedRoute>} />
+          <Route path="/admin/risk-analysis" element={<ProtectedRoute role={['admin', 'manager']}><SmartInsight /></ProtectedRoute>} />
           <Route path="/admin/audit" element={<ProtectedRoute role="admin"><AuditLogs /></ProtectedRoute>} />
 
           {/* Shared Profile & Detail Routes */}

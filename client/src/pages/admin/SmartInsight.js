@@ -16,10 +16,16 @@ const SmartInsight = () => {
 
     const fetchInsights = async () => {
         try {
-            const { data } = await API.get('/api/grievances/insights');
-            setInsights(data);
+            // Use canonical risk-analysis endpoint with fallback to legacy alias
+            let res;
+            try {
+                res = await API.get('/api/grievances/risk-analysis');
+            } catch (fallbackErr) {
+                res = await API.get('/api/grievances/insights');
+            }
+            setInsights(res.data);
         } catch (err) {
-            console.error('Error fetching escalation insights:', err);
+            console.error('Error fetching complaint risk analysis:', err);
         } finally {
             setLoading(false);
         }
@@ -29,31 +35,66 @@ const SmartInsight = () => {
         setGenerating(true);
         setIsScanning(true);
         try {
-            const { data } = await API.post('/api/grievances/insights/generate');
+            let res;
+            try {
+                res = await API.post('/api/grievances/risk-analysis/generate');
+            } catch (fallbackErr) {
+                res = await API.post('/api/grievances/insights/generate');
+            }
             setTimeout(() => {
-                setInsights(data);
+                setInsights(res.data);
                 setGenerating(false);
                 setTimeout(() => setIsScanning(false), 1200);
             }, 600);
         } catch (err) {
-            console.error('Error generating escalation insights:', err);
-            alert(err.response?.data?.message || 'Error generating insights');
+            console.error('Error generating risk analysis:', err);
+            alert(err.response?.data?.message || 'Error generating complaint risk analysis');
             setGenerating(false);
             setIsScanning(false);
         }
     };
 
-    const getRiskBadge = (score) => {
-        if (score === 'Critical' || score === 'High') return { border: 'var(--signal-red)', bg: 'rgba(192, 67, 59, 0.15)', text: 'var(--signal-red)', label: `${score.toUpperCase()} RISK` };
-        if (score === 'Medium') return { border: 'var(--accent-amber)', bg: 'var(--accent-amber-dim)', text: 'var(--accent-amber)', label: 'MEDIUM RISK' };
-        return { border: 'var(--signal-green)', bg: 'rgba(79, 157, 110, 0.15)', text: 'var(--signal-green)', label: 'LOW RISK' };
+    const getRiskBadge = (numericScore, riskLabel) => {
+        const score = typeof numericScore === 'number' ? numericScore : null;
+        const label = riskLabel || (score >= 80 ? 'Critical' : score >= 60 ? 'High' : score >= 35 ? 'Medium' : 'Low');
+
+        if (label === 'Critical' || (score !== null && score >= 80)) {
+            return {
+                border: 'var(--signal-red)',
+                bg: 'rgba(192, 67, 59, 0.15)',
+                text: 'var(--signal-red)',
+                label: `CRITICAL (${score !== null ? `${score}/100` : 'HIGH RISK'})`
+            };
+        }
+        if (label === 'High' || (score !== null && score >= 60)) {
+            return {
+                border: '#e11d48',
+                bg: 'rgba(225, 29, 72, 0.15)',
+                text: '#e11d48',
+                label: `HIGH (${score !== null ? `${score}/100` : 'HIGH RISK'})`
+            };
+        }
+        if (label === 'Medium' || (score !== null && score >= 35)) {
+            return {
+                border: 'var(--accent-amber)',
+                bg: 'var(--accent-amber-dim)',
+                text: 'var(--accent-amber)',
+                label: `MEDIUM (${score !== null ? `${score}/100` : 'MODERATE'})`
+            };
+        }
+        return {
+            border: 'var(--signal-green)',
+            bg: 'rgba(79, 157, 110, 0.15)',
+            text: 'var(--signal-green)',
+            label: `LOW (${score !== null ? `${score}/100` : 'NORMAL'})`
+        };
     };
 
     return (
         <div style={{ display: 'flex' }}>
             <Sidebar />
             <div className="main-content">
-                <Topbar title="AI Escalation Risk Engine" />
+                <Topbar title="Complaint Risk Analysis Engine" />
 
                 {/* Hero Panel */}
                 <div className="glass-panel" style={{
@@ -63,7 +104,7 @@ const SmartInsight = () => {
                     background: 'var(--glass-tint)',
                     border: '1px solid var(--glass-border)',
                     display: 'flex',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     gap: '1.5rem',
                     flexWrap: 'wrap'
@@ -71,18 +112,18 @@ const SmartInsight = () => {
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <h2 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.4rem' }}>
-                                <span>⚡</span> Heuristic SLA Escalation Risk Engine
+                                <span>⚖️</span> Complaint Risk Analysis Engine
                             </h2>
                             <button
                                 onClick={() => setShowExplainer(!showExplainer)}
                                 className="btn-municipal-glass"
                                 style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', borderRadius: '12px', marginBottom: '0.4rem', cursor: 'pointer' }}
                             >
-                                ℹ️ How this works
+                                ℹ️ Deterministic Scoring Methodology
                             </button>
                         </div>
-                        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '700px', lineHeight: '1.5' }}>
-                            Evaluates ticket priority weights, SLA overdue hours, category factors, and active complaint volume to calculate an explainable numerical risk score. Surfaces automated supervisor dispatch recommendations.
+                        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '720px', lineHeight: '1.5' }}>
+                            Transparent rule-based heuristic scoring engine combining 6 operational complaint indicators: Complaint Age, Priority Level, Municipal Category, Assignment Status, Citizen Follow-ups, and Expected Resolution Target Proximity.
                         </p>
                     </div>
 
@@ -96,11 +137,11 @@ const SmartInsight = () => {
                             whiteSpace: 'nowrap'
                         }}
                     >
-                        {generating ? 'Scanning Citizen Dataset...' : '⚡ Run Risk Analysis Engine'}
+                        {generating ? 'Calculating Heuristic Risk...' : '⚖️ Run Risk Analysis Engine'}
                     </button>
                 </div>
 
-                {/* Explainer Modal / Tooltip Drawer */}
+                {/* Explainer Modal / Methodology Drawer */}
                 {showExplainer && (
                     <div className="glass-panel" style={{
                         padding: '1.4rem 1.8rem',
@@ -113,44 +154,58 @@ const SmartInsight = () => {
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
                             <h4 style={{ margin: 0, color: 'var(--accent-amber)', fontSize: '1rem', fontFamily: 'Fraunces, serif' }}>
-                                📐 Explainable Heuristic Formula & Inputs
+                                📐 6 Deterministic Heuristic Indicators (Rule-Based, Non-ML)
                             </h4>
                             <button onClick={() => setShowExplainer(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.1rem' }}>✕</button>
                         </div>
 
                         <p style={{ margin: '0 0 0.8rem 0', color: 'var(--text-primary)' }}>
-                            The Escalation Engine evaluates every active citizen account using a transparent, rule-based scoring formula:
+                            Every active complaint profile is scored deterministically on a <strong>0–100 numerical scale</strong> across 6 weighted operational parameters:
                         </p>
 
-                        <div className="mono-data" style={{ background: 'rgba(0,0,0,0.4)', padding: '0.8rem 1rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '3px solid var(--accent-amber)' }}>
-                            <strong>RiskScore</strong> = PriorityWeight (Critical=40, High=30, Medium=15, Low=5) <br/>
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ (SLAOverdueHours × 2) <br/>
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ CategoryWeight (+10 for Water, Sanitation & Public Safety) <br/>
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ (ActiveComplaintsCount × 5)
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.8rem', marginBottom: '1rem' }}>
+                            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.7rem 0.9rem', borderRadius: '8px', borderLeft: '3px solid var(--accent-amber)' }}>
+                                <strong>1. Complaint Age:</strong> +5 to +25 pts based on open aging window (24h/48h/72h thresholds).
+                            </div>
+                            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.7rem 0.9rem', borderRadius: '8px', borderLeft: '3px solid var(--signal-blue)' }}>
+                                <strong>2. Priority Level:</strong> Critical (+30), High (+20), Medium (+10), Low (+0).
+                            </div>
+                            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.7rem 0.9rem', borderRadius: '8px', borderLeft: '3px solid var(--signal-green)' }}>
+                                <strong>3. Municipal Category:</strong> Essential services (+15), Infrastructure (+10), Standard (+5).
+                            </div>
+                            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.7rem 0.9rem', borderRadius: '8px', borderLeft: '3px solid #e11d48' }}>
+                                <strong>4. Assignment Status:</strong> Unassigned officer &gt; 12h (+15), awaiting assignment (+5).
+                            </div>
+                            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.7rem 0.9rem', borderRadius: '8px', borderLeft: '3px solid #9333ea' }}>
+                                <strong>5. Citizen Follow-ups:</strong> +5 pts per citizen timeline inquiry (capped at +20).
+                            </div>
+                            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.7rem 0.9rem', borderRadius: '8px', borderLeft: '3px solid var(--signal-red)' }}>
+                                <strong>6. Expected Resolution:</strong> Past expected resolution time (+25), deadline imminent (+15).
+                            </div>
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.8rem', fontSize: '0.8rem' }}>
                             <div style={{ padding: '0.6rem', borderRadius: '6px', background: 'rgba(192, 67, 59, 0.15)', border: '1px solid var(--signal-red)' }}>
-                                <strong style={{ color: 'var(--signal-red)' }}>Critical Risk (Score ≥ 60):</strong> Immediate senior officer dispatch & supervisor intervention.
+                                <strong style={{ color: 'var(--signal-red)' }}>Critical (80–100):</strong> Immediate emergency dispatch and direct citizen contact.
                             </div>
-                            <div style={{ padding: '0.6rem', borderRadius: '6px', background: 'rgba(192, 67, 59, 0.1)', border: '1px solid #e11d48' }}>
-                                <strong style={{ color: '#e11d48' }}>High Risk (Score 35–59):</strong> SLA breach imminent or active. Dispatch field inspection.
+                            <div style={{ padding: '0.6rem', borderRadius: '6px', background: 'rgba(225, 29, 72, 0.15)', border: '1px solid #e11d48' }}>
+                                <strong style={{ color: '#e11d48' }}>High (60–79):</strong> Expected resolution window imminent or delayed. Reassign senior officer.
                             </div>
                             <div style={{ padding: '0.6rem', borderRadius: '6px', background: 'var(--accent-amber-dim)', border: '1px solid var(--accent-amber)' }}>
-                                <strong style={{ color: 'var(--accent-amber)' }}>Medium Risk (Score 15–34):</strong> Monitor progress. Follow up on pending citizen ticket.
+                                <strong style={{ color: 'var(--accent-amber)' }}>Medium (35–59):</strong> Active inspection pending. Supervise field progress.
                             </div>
                             <div style={{ padding: '0.6rem', borderRadius: '6px', background: 'rgba(79, 157, 110, 0.15)', border: '1px solid var(--signal-green)' }}>
-                                <strong style={{ color: 'var(--signal-green)' }}>Low Risk (Score &lt; 15):</strong> Complaint within standard SLA target window.
+                                <strong style={{ color: 'var(--signal-green)' }}>Low (0–34):</strong> Progressing normally within expected resolution timeframe.
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Glass Rod Progress Indicator */}
+                {/* Progress Indicator */}
                 {generating && (
                     <div className="glass-rod-loader" style={{ marginBottom: '1.5rem', position: 'relative', height: '4rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <span className="mono-data" style={{ fontSize: '0.85rem', color: 'var(--accent-amber)', zIndex: 2 }}>
-                            TRANSMITTING DATASET THROUGH HEURISTIC RISK MATRIX...
+                            EVALUATING 6 HEURISTIC RISK PARAMETERS ACROSS COMPLAINTS...
                         </span>
                     </div>
                 )}
@@ -161,17 +216,18 @@ const SmartInsight = () => {
 
                     {loading ? (
                         <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            Loading municipal risk records...
+                            Loading complaint risk analysis records...
                         </div>
                     ) : insights.length === 0 ? (
                         <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            No generated insights available. Click "Run Risk Analysis Engine" above to trigger initial analysis.
+                            No generated risk analyses available. Click "Run Risk Analysis Engine" above to trigger initial evaluation.
                         </div>
                     ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
                             {insights.map((item, idx) => {
                                 const citizen = item.citizenId || {};
-                                const badge = getRiskBadge(item.riskScore);
+                                const badge = getRiskBadge(item.numericScore, item.riskScore);
+                                const reasonsList = item.reasons && item.reasons.length > 0 ? item.reasons : (item.riskFactors || []);
 
                                 return (
                                     <div key={item._id || idx} className="glass-card glass-card-interactive stagger-in" style={{
@@ -180,7 +236,7 @@ const SmartInsight = () => {
                                         borderLeft: `4px solid ${badge.border}`,
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        justify: 'space-between'
+                                        justifyContent: 'space-between'
                                     }}>
                                         <div>
                                             {/* Card Top */}
@@ -206,7 +262,7 @@ const SmartInsight = () => {
                                                 </span>
                                             </div>
 
-                                            {/* AI Recommendation */}
+                                            {/* Recommended Action */}
                                             <div style={{ marginBottom: '1.2rem', padding: '0.75rem', borderRadius: '8px', background: 'rgba(11, 18, 32, 0.4)', border: '1px solid var(--glass-border)' }}>
                                                 <div style={{ fontSize: '0.7rem', color: 'var(--accent-amber)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '0.3rem', letterSpacing: '0.5px' }}>
                                                     Recommended Action
@@ -216,22 +272,23 @@ const SmartInsight = () => {
                                                 </p>
                                             </div>
 
-                                            {/* Risk Triggers */}
+                                            {/* Heuristic Reasons Breakdown */}
                                             <div>
                                                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '0.4rem', letterSpacing: '0.5px' }}>
-                                                    Risk Factors Evaluated
+                                                    Contributing Heuristic Factors
                                                 </div>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                                    {item.riskFactors?.map((rf, fIdx) => (
-                                                        <span key={fIdx} style={{
-                                                            padding: '0.15rem 0.5rem',
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                                    {reasonsList.map((reason, rIdx) => (
+                                                        <span key={rIdx} style={{
+                                                            padding: '0.2rem 0.5rem',
                                                             borderRadius: '6px',
                                                             fontSize: '0.72rem',
                                                             background: 'rgba(148, 163, 184, 0.08)',
                                                             color: 'var(--text-muted)',
-                                                            border: '1px solid var(--glass-border)'
+                                                            border: '1px solid var(--glass-border)',
+                                                            lineHeight: '1.3'
                                                         }}>
-                                                            • {rf}
+                                                            • {reason}
                                                         </span>
                                                     ))}
                                                 </div>
@@ -240,8 +297,10 @@ const SmartInsight = () => {
 
                                         {/* Card Footer */}
                                         <div style={{ marginTop: '1.2rem', paddingTop: '0.75rem', borderTop: '1px solid var(--glass-border)', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                                            <span className="mono-data">Generated: {new Date(item.generatedAt || item.updatedAt).toLocaleTimeString()}</span>
-                                            <span className="mono-data">Status: Active</span>
+                                            <span className="mono-data">Computed: {new Date(item.generatedAt || item.updatedAt).toLocaleTimeString()}</span>
+                                            <span className="mono-data" style={{ color: 'var(--accent-amber)' }}>
+                                                {typeof item.numericScore === 'number' ? `Score: ${item.numericScore}/100` : 'Deterministic'}
+                                            </span>
                                         </div>
                                     </div>
                                 );

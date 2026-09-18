@@ -219,3 +219,4 @@ Allows authorized administrators to reset `SAFE_MODE` back to `ACTIVE`. The endp
 * **Mobile TypeScript**: `npx tsc --noEmit` -> **0 errors**.
 * **Mobile Android Expo**: `npx expo export --platform android` -> **Successful bundle (1.6 MB)**.
 * **Web Production Build**: `npm run build` -> **Successful production build**.
+

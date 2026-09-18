@@ -11,6 +11,7 @@ import {
   assignGrievanceOfficer,
 } from '../services/grievanceService';
 import { getRoleTheme } from '../theme/roleTheme';
+import { normalizeRole, ROLES, formatRoleLabel } from '../utils/roleHelper';
 
 interface GrievanceDetailScreenProps {
   user?: any;
@@ -35,6 +36,7 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
   const [officers, setOfficers] = useState<any[]>([]);
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
   const [assigning, setAssigning] = useState<boolean>(false);
+  const [selectedRole, setSelectedRole] = useState<string>(formatRoleLabel(user?.role));
 
   // Photographic Evidence State
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -77,10 +79,12 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
     }
   }, [grievanceId, grievance?.attachment]);
 
-  const isOfficerRole = user?.role === 'officer' || user?.role === 'field_officer';
-  const isManagerRole = user?.role === 'manager';
-  const isAdminRole = user?.role === 'admin';
+  const userRole = normalizeRole(user?.role);
+  const isOfficerRole = userRole === ROLES.OFFICER;
+  const isManagerRole = userRole === ROLES.MANAGER;
+  const isAdminRole = userRole === ROLES.ADMIN;
   const canAssignOfficer = isManagerRole || isAdminRole;
+  const ROLE_OPTIONS = ['Citizen', 'Field Officer', 'Manager', 'Administrator'];
 
   useEffect(() => {
     if (canAssignOfficer) {
@@ -205,12 +209,8 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
 
     setSubmittingNote(true);
     try {
-      const noteType = isOfficerRole
-        ? 'Officer Field Note'
-        : canAssignOfficer
-        ? 'Officer Field Note'
-        : 'Citizen Response';
-      const res = await postTimelineUpdate(grievanceId, noteText.trim(), noteType);
+      const canonicalAuthorRole = normalizeRole(selectedRole);
+      const res = await postTimelineUpdate(grievanceId, noteText.trim(), canonicalAuthorRole, selectedRole);
       setSubmittingNote(false);
 
       if (res.error) {
@@ -218,14 +218,7 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
         return;
       }
 
-      Alert.alert(
-        'Note Recorded',
-        isOfficerRole
-          ? 'Officer Field Note posted to timeline.'
-          : canAssignOfficer
-          ? 'Manager / Staff review note posted to timeline.'
-          : 'Your note has been added to the official timeline log.'
-      );
+      Alert.alert('Note Recorded', 'Your note has been added to the official timeline log.');
       setNoteText('');
       loadGrievanceDetails();
     } catch (err: any) {
@@ -295,7 +288,7 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
             </Text>
 
             <View style={styles.slaBanner}>
-              <Text style={styles.slaText}>⏰ Target Deadline: {new Date(grievance.deadline).toLocaleString()}</Text>
+              <Text style={styles.slaText}>⏰ Expected Resolution Time: {new Date(grievance.deadline).toLocaleString()}</Text>
             </View>
 
             <Text style={styles.sectionHeader}>Full Problem Description:</Text>
@@ -497,26 +490,24 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
               <Text style={styles.emptyLogText}>No timeline notes recorded yet.</Text>
             ) : (
               timelineLogs.map((log) => {
-                const authorName = log.userId?.name || log.createdBy?.name || log.authorName || 'System';
-                const authorRole = log.userId?.role || (log.type?.includes('Officer') ? 'officer' : log.type?.includes('Citizen') ? 'citizen' : null);
-                const roleTheme = getRoleTheme(authorRole || 'citizen');
+                const authorName = log.authorName || log.userId?.name || log.createdBy?.name || 'User';
+                const authorRole = normalizeRole(log.authorRole || log.userId?.role || log.type);
+                const roleTheme = getRoleTheme(authorRole);
+                const messageText = log.message || log.notes || '';
                 return (
                   <View key={log._id} style={styles.logBox}>
                     <View style={styles.logHeader}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <Text style={styles.logAuthor}>{authorName}</Text>
-                        {authorRole && (
-                          <View style={[styles.inlineBadge, { backgroundColor: roleTheme.badgeBg, borderColor: roleTheme.badgeBorder }]}>
-                            <Text style={[styles.inlineBadgeText, { color: roleTheme.badgeText }]}>
-                              {roleTheme.roleLabel}
-                            </Text>
-                          </View>
-                        )}
+                        <View style={[styles.inlineBadge, { backgroundColor: roleTheme.badgeBg, borderColor: roleTheme.badgeBorder }]}>
+                          <Text style={[styles.inlineBadgeText, { color: roleTheme.badgeText }]}>
+                            ({roleTheme.roleLabel})
+                          </Text>
+                        </View>
                       </View>
                       <Text style={styles.logDate}>{new Date(log.createdAt).toLocaleString()}</Text>
                     </View>
-                    <Text style={styles.logType}>Type: {log.type}</Text>
-                    <Text style={styles.logNotes}>{log.notes}</Text>
+                    <Text style={styles.logNotes}>{messageText}</Text>
                   </View>
                 );
               })
@@ -525,22 +516,35 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
 
           {/* Post Timeline Note Form */}
           <View style={styles.card}>
-            <Text style={styles.sectionHeader}>
-              {isOfficerRole
-                ? '📝 Add Field Inspection Note'
-                : canAssignOfficer
-                ? '📋 Add Administrative / Review Note'
-                : '✏️ Add Citizen Follow-up Note'}
-            </Text>
+            <Text style={styles.sectionHeader}>📝 Post Timeline Note</Text>
+
+            {/* Author Role Selector */}
+            <View style={{ marginBottom: 10 }}>
+              <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6 }}>Author Role:</Text>
+              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                {ROLE_OPTIONS.map((opt) => {
+                  const isSelected = selectedRole === opt;
+                  return (
+                    <TouchableOpacity
+                      key={opt}
+                      onPress={() => setSelectedRole(opt)}
+                      style={[
+                        styles.roleChip,
+                        isSelected && styles.roleChipActive
+                      ]}
+                    >
+                      <Text style={[styles.roleChipText, isSelected && styles.roleChipTextActive]}>
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             <TextInput
               style={styles.textArea}
-              placeholder={
-                isOfficerRole
-                  ? 'Type official field inspection notes or verification findings...'
-                  : canAssignOfficer
-                  ? 'Type official managerial review notes or instructions...'
-                  : 'Type follow-up update or additional details for field officer...'
-              }
+              placeholder="Type official inspection notes, follow-up, or resolution updates..."
               placeholderTextColor="#64748B"
               value={noteText}
               onChangeText={setNoteText}
@@ -553,13 +557,7 @@ export const GrievanceDetailScreen: React.FC<GrievanceDetailScreenProps> = ({
               disabled={submittingNote || !noteText.trim()}
             >
               <Text style={styles.postBtnText}>
-                {submittingNote
-                  ? 'Posting...'
-                  : isOfficerRole
-                  ? '📌 Post Field Note'
-                  : canAssignOfficer
-                  ? '📌 Post Review Note'
-                  : 'Post Timeline Update'}
+                {submittingNote ? 'Posting...' : 'Post Timeline Note'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -874,6 +872,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#F8FAFC',
     lineHeight: 16,
+  },
+  roleChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  roleChipActive: {
+    backgroundColor: 'rgba(201, 150, 44, 0.2)',
+    borderColor: '#C9962C',
+  },
+  roleChipText: {
+    color: '#94A3B8',
+    fontSize: 12,
+  },
+  roleChipTextActive: {
+    color: '#C9962C',
+    fontWeight: 'bold',
   },
   textArea: {
     backgroundColor: '#0F172A',

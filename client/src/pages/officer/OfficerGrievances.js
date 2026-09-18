@@ -120,7 +120,7 @@ const OfficerGrievances = () => {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.6rem', borderTop: '1px solid var(--glass-border)' }}>
                     <div className="mono-data" style={{ fontSize: '0.72rem', color: isOverdue ? 'var(--signal-red)' : 'var(--text-muted)' }}>
-                        SLA: {new Date(item.deadline).toLocaleDateString()}
+                        Expected: {new Date(item.deadline).toLocaleDateString()}
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.4rem' }}>

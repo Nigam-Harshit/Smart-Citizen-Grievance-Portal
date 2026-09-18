@@ -88,6 +88,45 @@ const grievanceSchema = new mongoose.Schema({
     uploadedAt: {
       type: Date,
       default: Date.now
+    },
+    // V2.0.0 Photo Intelligence & Automated Computer Vision Metadata
+    intelligence: {
+      status: {
+        type: String,
+        enum: ['PENDING', 'PROCESSED', 'FAILED', 'SKIPPED'],
+        default: 'PENDING'
+      },
+      labels: [{
+        name: { type: String, trim: true },
+        confidence: { type: Number }
+      }],
+      moderation: {
+        isAppropriate: { type: Boolean, default: true },
+        flaggedReason: { type: String, trim: true },
+        confidence: { type: Number }
+      },
+      qualityScore: {
+        type: Number // Normalized 0.0 - 1.0 image clarity & quality rating
+      },
+      detectedText: [{
+        text: { type: String, trim: true },
+        confidence: { type: Number }
+      }],
+      inferredCategory: {
+        type: String,
+        trim: true
+      },
+      inferredUrgency: {
+        type: String,
+        enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+      },
+      processedAt: {
+        type: Date
+      },
+      modelVersion: {
+        type: String,
+        trim: true
+      }
     }
   },
   // V2.0.0 Optional Client Idempotency Key
@@ -100,8 +139,11 @@ const grievanceSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Sparse unique compound index to prevent duplicate submissions per citizen
-grievanceSchema.index({ citizenId: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
+// Partial unique compound index to prevent duplicate submissions per citizen when idempotencyKey is provided
+grievanceSchema.index(
+  { citizenId: 1, idempotencyKey: 1 },
+  { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
+);
 
 // Sparse index on storage key for orphan reconciliation and rapid asset lookups
 grievanceSchema.index({ 'attachment.storageKey': 1 }, { sparse: true });

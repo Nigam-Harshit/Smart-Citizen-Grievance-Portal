@@ -185,7 +185,7 @@ const SubmitGrievance = () => {
                                 Submit Municipal Complaint Ticket
                             </h2>
                             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                                Provide accurate complaint details and landmark location to ensure priority SLA dispatch to Zonal field officers.
+                                Provide accurate complaint details and landmark location to ensure priority dispatch to Zonal field officers.
                             </p>
                         </div>
 
@@ -235,10 +235,10 @@ const SubmitGrievance = () => {
                                 <div className="form-group">
                                     <label>Priority Level *</label>
                                     <select value={priority} onChange={(e) => setPriority(e.target.value)} required>
-                                        <option value="Low">Low (14 Days Target SLA)</option>
-                                        <option value="Medium">Medium (7 Days Target SLA)</option>
-                                        <option value="High">High (3 Days Target SLA)</option>
-                                        <option value="Critical">Critical (24 Hours Emergency SLA)</option>
+                                        <option value="Low">Low (14 Days Expected Resolution)</option>
+                                        <option value="Medium">Medium (7 Days Expected Resolution)</option>
+                                        <option value="High">High (3 Days Expected Resolution)</option>
+                                        <option value="Critical">Critical (24 Hours Expected Resolution)</option>
                                     </select>
                                 </div>
                             </div>

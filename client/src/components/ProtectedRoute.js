@@ -1,6 +1,7 @@
-import { useContext } from 'react';
+import React, { useContext } from 'react';
 import { Navigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
+import { normalizeRole } from '../utils/roleHelper';
 
 const ProtectedRoute = ({ children, role }) => {
     const { user, loading } = useContext(AuthContext);
@@ -12,12 +13,14 @@ const ProtectedRoute = ({ children, role }) => {
     }
 
     if (role) {
-        const allowedRoles = Array.isArray(role) ? role : [role];
-        if (!allowedRoles.includes(user.role)) {
+        const allowedRoles = (Array.isArray(role) ? role : [role]).map(r => normalizeRole(r));
+        const userRole = normalizeRole(user.role);
+
+        if (!allowedRoles.includes(userRole)) {
             // Redirect to role-appropriate dashboard
-            if (user.role === 'admin' || user.role === 'manager') {
+            if (userRole === 'admin' || userRole === 'manager') {
                 return <Navigate to="/admin" replace />;
-            } else if (user.role === 'officer') {
+            } else if (userRole === 'officer') {
                 return <Navigate to="/officer" replace />;
             } else {
                 return <Navigate to="/citizen" replace />;

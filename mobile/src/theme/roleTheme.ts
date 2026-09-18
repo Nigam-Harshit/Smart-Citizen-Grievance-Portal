@@ -1,3 +1,5 @@
+import { normalizeRole, ROLES } from '../utils/roleHelper';
+
 export interface RoleTheme {
   primary: string;
   secondary: string;
@@ -9,41 +11,40 @@ export interface RoleTheme {
 }
 
 export const getRoleTheme = (role?: string): RoleTheme => {
-  const normalized = (role || 'citizen').toLowerCase();
+  const normalized = normalizeRole(role);
 
   switch (normalized) {
-    case 'officer':
-    case 'field_officer':
+    case ROLES.OFFICER:
       return {
         primary: '#3B82F6',
         secondary: '#60A5FA',
         badgeBg: 'rgba(59, 130, 246, 0.15)',
         badgeBorder: '#3B82F6',
         badgeText: '#60A5FA',
-        roleLabel: 'FIELD OFFICER',
+        roleLabel: 'Field Officer',
         icon: '👮',
       };
-    case 'manager':
+    case ROLES.MANAGER:
       return {
         primary: '#10B981',
         secondary: '#34D399',
         badgeBg: 'rgba(16, 185, 129, 0.15)',
         badgeBorder: '#10B981',
         badgeText: '#34D399',
-        roleLabel: 'CIVIC MANAGER',
+        roleLabel: 'Manager',
         icon: '📊',
       };
-    case 'admin':
+    case ROLES.ADMIN:
       return {
         primary: '#8B5CF6',
         secondary: '#A78BFA',
         badgeBg: 'rgba(139, 92, 246, 0.15)',
         badgeBorder: '#8B5CF6',
         badgeText: '#A78BFA',
-        roleLabel: 'SYSTEM ADMIN',
+        roleLabel: 'Administrator',
         icon: '👑',
       };
-    case 'citizen':
+    case ROLES.CITIZEN:
     default:
       return {
         primary: '#C9962C',
@@ -51,7 +52,7 @@ export const getRoleTheme = (role?: string): RoleTheme => {
         badgeBg: 'rgba(201, 150, 44, 0.15)',
         badgeBorder: '#C9962C',
         badgeText: '#EAB308',
-        roleLabel: 'CITIZEN',
+        roleLabel: 'Citizen',
         icon: '🏡',
       };
   }

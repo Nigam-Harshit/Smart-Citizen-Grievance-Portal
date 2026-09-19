@@ -11,6 +11,7 @@ const imageProcessor = require('../utils/imageProcessor');
 const storageService = require('../utils/storageService');
 const costGovernorService = require('../services/costGovernorService');
 const { normalizeRole, formatRoleLabel } = require('../utils/roleHelper');
+const { createNotificationSafe } = require('./notificationController');
 
 const getGrievances = async (req, res) => {
     try {
@@ -550,6 +551,22 @@ const updateGrievance = async (req, res) => {
             });
 
             await auditController.logAudit(req.user._id, 'Assign Officer', `Assigned grievance "${grievance.title}" to officer ${assignedOfficerObj.name}.`);
+
+            try {
+                if (mongoose.connection && mongoose.connection.readyState === 1) {
+                    await createNotificationSafe({
+                        recipient: assignedOfficerObj._id,
+                        actor: req.user._id,
+                        title: 'New Grievance Assigned',
+                        message: `You have been assigned to handle grievance "${grievance.title}".`,
+                        type: 'ASSIGNMENT',
+                        grievanceId: grievance._id,
+                        eventKey: `assign:${grievance._id}:${assignedOfficerObj._id}`
+                    });
+                }
+            } catch (notifyErr) {
+                console.warn('[Notification] Non-blocking assignment dispatch warning:', notifyErr.message);
+            }
         }
 
         if (updateData.status && updateData.status !== oldStatus) {
@@ -568,8 +585,46 @@ const updateGrievance = async (req, res) => {
 
             await auditController.logAudit(req.user._id, 'Update Grievance', `Changed grievance "${grievance.title}" status from ${oldStatus} to ${updateData.status}.`);
 
+            let citizen = null;
+            // Safe notification dispatch to the citizen
+            try {
+                if (mongoose.connection && mongoose.connection.readyState === 1) {
+                    let citizenUserId = null;
+                    citizen = await Citizen.findById(grievance.citizenId);
+                    if (citizen) {
+                        citizenUserId = citizen.linkedUserId;
+                        if (!citizenUserId) {
+                            const u = await User.findOne({ email: citizen.email });
+                            if (u) citizenUserId = u._id;
+                        }
+                    }
+                    if (!citizenUserId) {
+                        const directUser = await User.findById(grievance.citizenId);
+                        if (directUser) citizenUserId = directUser._id;
+                    }
+
+                    if (citizenUserId) {
+                        await createNotificationSafe({
+                            recipient: citizenUserId,
+                            actor: req.user._id,
+                            title: 'Grievance Status Updated',
+                            message: `Your grievance "${grievance.title}" status has been updated to: ${updateData.status}.`,
+                            type: 'STATUS_CHANGE',
+                            grievanceId: grievance._id,
+                            eventKey: `status:${grievance._id}:${updateData.status}`
+                        });
+                    }
+                }
+            } catch (notifyErr) {
+                console.warn('[Notification] Non-blocking status dispatch warning:', notifyErr.message);
+            }
+
             // Email alert simulation/sending
-            const citizen = await Citizen.findById(grievance.citizenId);
+            if (!citizen && mongoose.connection && mongoose.connection.readyState === 1) {
+                try {
+                    citizen = await Citizen.findById(grievance.citizenId);
+                } catch (e) {}
+            }
             if (citizen && citizen.email) {
                 const message = `Dear ${citizen.name},\n\nYour grievance titled "${grievance.title}" (ID: ${grievance._id}) status has been updated to: ${updateData.status}.\n\nThank you for using the Smart Citizen Grievance Portal.`;
                 try {

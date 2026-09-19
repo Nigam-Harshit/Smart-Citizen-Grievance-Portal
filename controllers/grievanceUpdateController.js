@@ -1,7 +1,11 @@
+const mongoose = require('mongoose');
 const GrievanceUpdate = require('../models/GrievanceUpdate');
 const Grievance = require('../models/Grievance');
+const Citizen = require('../models/Citizen');
+const User = require('../models/User');
 const { logAudit } = require('./auditController');
 const { normalizeRole, formatRoleLabel } = require('../utils/roleHelper');
+const { createNotificationSafe } = require('./notificationController');
 
 const getUpdatesByGrievance = async (req, res) => {
     try {
@@ -82,6 +86,51 @@ const createUpdate = async (req, res) => {
         }
 
         await logAudit(req.user._id, 'Add Grievance Update', `Added ${formatRoleLabel(authorRole)} update to grievance "${grievance.title}".`);
+
+        // Safe notification dispatch: notify citizen if staff posted, or notify officer if citizen posted
+        try {
+            if (mongoose.connection && mongoose.connection.readyState === 1) {
+                if (['admin', 'manager', 'officer'].includes(authorRole)) {
+                    let citizenUserId = null;
+                    const citizen = await Citizen.findById(grievance.citizenId);
+                    if (citizen) {
+                        citizenUserId = citizen.linkedUserId;
+                        if (!citizenUserId) {
+                            const u = await User.findOne({ email: citizen.email });
+                            if (u) citizenUserId = u._id;
+                        }
+                    }
+                    if (!citizenUserId) {
+                        const directUser = await User.findById(grievance.citizenId);
+                        if (directUser) citizenUserId = directUser._id;
+                    }
+
+                    if (citizenUserId) {
+                        await createNotificationSafe({
+                            recipient: citizenUserId,
+                            actor: req.user._id,
+                            title: 'New Update on Grievance',
+                            message: `${authorName} (${formatRoleLabel(authorRole)}) added an update to "${grievance.title}".`,
+                            type: 'TIMELINE_UPDATE',
+                            grievanceId: grievance._id,
+                            eventKey: `update:${updateEntry._id}`
+                        });
+                    }
+                } else if (authorRole === 'citizen' && grievance.assignedTo) {
+                    await createNotificationSafe({
+                        recipient: grievance.assignedTo,
+                        actor: req.user._id,
+                        title: 'Citizen Response Added',
+                        message: `Citizen ${authorName} posted a response on grievance "${grievance.title}".`,
+                        type: 'TIMELINE_UPDATE',
+                        grievanceId: grievance._id,
+                        eventKey: `update:${updateEntry._id}`
+                    });
+                }
+            }
+        } catch (notifyErr) {
+            console.warn('[Notification] Non-blocking timeline dispatch warning:', notifyErr.message);
+        }
 
         res.status(201).json({
             _id: updateEntry._id,

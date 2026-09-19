@@ -32,6 +32,7 @@ const SubmitGrievance = () => {
     const [loading, setLoading] = useState(false);
     const [idempotencyKey, setIdempotencyKey] = useState(() => generateIdempotencyKey());
     const fileInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
 
     // Clean up temporary object URL on unmount or replacement
     useEffect(() => {
@@ -93,6 +94,9 @@ const SubmitGrievance = () => {
         setFileError('');
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
+        }
+        if (cameraInputRef.current) {
+            cameraInputRef.current.value = '';
         }
     };
 
@@ -281,6 +285,16 @@ const SubmitGrievance = () => {
                                     aria-label="Upload photographic evidence"
                                 />
 
+                                <input
+                                    type="file"
+                                    ref={cameraInputRef}
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={handleFileChange}
+                                    style={{ display: 'none' }}
+                                    aria-label="Capture photo with camera"
+                                />
+
                                 {fileError && (
                                     <div role="alert" aria-live="polite" style={{ padding: '0.8rem 1rem', background: 'rgba(192, 67, 59, 0.15)', border: '1px solid var(--signal-red)', borderRadius: '8px', marginBottom: '1rem', color: 'var(--signal-red)', fontSize: '0.85rem' }}>
                                         ⚠️ {fileError}
@@ -308,7 +322,7 @@ const SubmitGrievance = () => {
                                         style={{
                                             border: '2px dashed var(--glass-border)',
                                             borderRadius: '12px',
-                                            padding: '1.8rem',
+                                            padding: '1.6rem',
                                             textAlign: 'center',
                                             cursor: 'pointer',
                                             background: 'rgba(16, 24, 38, 0.4)',
@@ -320,12 +334,54 @@ const SubmitGrievance = () => {
                                         onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-amber)'}
                                         onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--glass-border)'}
                                     >
-                                        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📸</div>
-                                        <div style={{ fontWeight: '500', color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
-                                            Click or press Enter to attach on-site photo evidence
+                                        <div style={{ fontSize: '2.2rem', marginBottom: '0.4rem' }}>📸</div>
+                                        <div style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.3rem', fontSize: '1rem' }}>
+                                            Add Photographic Evidence
                                         </div>
-                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                            Provides clear visual proof for zonal field inspection teams
+                                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1.2rem', maxWidth: '440px', margin: '0 auto 1.2rem auto' }}>
+                                            Attach clear on-site photographs to accelerate field inspection and zonal verification.
+                                        </div>
+
+                                        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                                type="button"
+                                                onClick={() => cameraInputRef.current?.click()}
+                                                className="btn-municipal-glass"
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.4rem',
+                                                    padding: '0.55rem 1.1rem',
+                                                    fontSize: '0.84rem',
+                                                    cursor: 'pointer',
+                                                    borderColor: 'var(--accent-amber)',
+                                                    color: 'var(--accent-amber)',
+                                                    borderRadius: '8px',
+                                                    fontWeight: '600'
+                                                }}
+                                                aria-label="Take photo with camera"
+                                            >
+                                                <span>📷</span> Take Photo
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="btn-municipal-glass"
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.4rem',
+                                                    padding: '0.55rem 1.1rem',
+                                                    fontSize: '0.84rem',
+                                                    cursor: 'pointer',
+                                                    borderRadius: '8px',
+                                                    fontWeight: '500'
+                                                }}
+                                                aria-label="Choose photo from device files or gallery"
+                                            >
+                                                <span>🖼️</span> Choose from Gallery
+                                            </button>
                                         </div>
                                     </div>
                                 ) : (
@@ -336,7 +392,8 @@ const SubmitGrievance = () => {
                                         background: 'rgba(201, 150, 44, 0.08)',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '1.2rem'
+                                        gap: '1.2rem',
+                                        flexWrap: 'wrap'
                                     }}>
                                         <img
                                             src={previewUrl}
@@ -349,29 +406,38 @@ const SubmitGrievance = () => {
                                                 border: '1px solid var(--glass-border)'
                                             }}
                                         />
-                                        <div style={{ flex: 1 }}>
+                                        <div style={{ flex: 1, minWidth: '220px' }}>
                                             <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '0.9rem', marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '320px' }}>
                                                 {photo.name}
                                             </div>
                                             <div className="mono-data" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
                                                 {(photo.size / (1024 * 1024)).toFixed(2)} MB • {photo.type}
                                             </div>
-                                            <div style={{ display: 'flex', gap: '0.8rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => cameraInputRef.current?.click()}
+                                                    className="btn-municipal-glass"
+                                                    aria-label="Retake photo using camera"
+                                                    style={{ padding: '0.35rem 0.8rem', fontSize: '0.78rem' }}
+                                                >
+                                                    📷 Retake Photo
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => fileInputRef.current?.click()}
                                                     className="btn-municipal-glass"
-                                                    aria-label="Change attached photo"
-                                                    style={{ padding: '0.3rem 0.8rem', fontSize: '0.78rem' }}
+                                                    aria-label="Change photo from gallery"
+                                                    style={{ padding: '0.35rem 0.8rem', fontSize: '0.78rem' }}
                                                 >
-                                                    Change Photo
+                                                    🖼️ Change File
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={handleRemovePhoto}
                                                     aria-label="Remove attached photo"
                                                     style={{
-                                                        padding: '0.3rem 0.8rem',
+                                                        padding: '0.35rem 0.8rem',
                                                         fontSize: '0.78rem',
                                                         background: 'rgba(192, 67, 59, 0.15)',
                                                         border: '1px solid var(--signal-red)',
@@ -380,7 +446,7 @@ const SubmitGrievance = () => {
                                                         cursor: 'pointer'
                                                     }}
                                                 >
-                                                    Remove
+                                                    ✕ Remove
                                                 </button>
                                             </div>
                                         </div>

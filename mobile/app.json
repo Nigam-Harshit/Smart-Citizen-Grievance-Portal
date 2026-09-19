@@ -3,6 +3,7 @@
     "name": "Grievance Portal",
     "slug": "mobile",
     "version": "1.0.2",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,6 +16,7 @@
     },
     "android": {
       "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#0F172A",
         "foregroundImage": "./assets/android-icon-foreground.png",

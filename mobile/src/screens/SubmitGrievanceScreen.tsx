@@ -355,11 +355,14 @@ export const SubmitGrievanceScreen: React.FC<SubmitGrievanceScreenProps> = ({ us
                   {selectedPhoto.fileSize ? `${(selectedPhoto.fileSize / (1024 * 1024)).toFixed(2)} MB • ` : ''}Secure private upload
                 </Text>
                 <View style={styles.previewButtonsRow}>
-                  <TouchableOpacity style={styles.changePhotoBtn} onPress={handlePickGallery} disabled={loading}>
-                    <Text style={styles.changePhotoBtnText}>Change</Text>
+                  <TouchableOpacity style={styles.changePhotoBtn} onPress={handleTakePhoto} disabled={loading} accessibilityLabel="Retake photo using camera">
+                    <Text style={styles.changePhotoBtnText}>📷 Retake</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.removePhotoBtn} onPress={handleRemovePhoto} disabled={loading}>
-                    <Text style={styles.removePhotoBtnText}>Remove</Text>
+                  <TouchableOpacity style={styles.changePhotoBtn} onPress={handlePickGallery} disabled={loading} accessibilityLabel="Change photo from gallery">
+                    <Text style={styles.changePhotoBtnText}>🖼️ Gallery</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.removePhotoBtn} onPress={handleRemovePhoto} disabled={loading} accessibilityLabel="Remove attached photo">
+                    <Text style={styles.removePhotoBtnText}>✕ Remove</Text>
                   </TouchableOpacity>
                 </View>
               </View>

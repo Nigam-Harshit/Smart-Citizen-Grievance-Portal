@@ -48,6 +48,7 @@ app.use('/api/reports', require('./routes/grievanceRoutes'));
 app.use('/api/interactions', require('./routes/grievanceUpdateRoutes'));
 app.use('/api/audit-logs', require('./routes/auditRoutes'));
 app.use('/api/admin/audit-logs', require('./routes/auditRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 const { protect: serverProtect, adminOrManager: serverAdminOrManager } = require('./middleware/authMiddleware');
 const { generateInsights: serverGenInsights, getInsights: serverGetInsights } = require('./controllers/grievanceController');
@@ -62,6 +63,7 @@ app.get('/api/health', (req, res) => {
     res.status(200).json({
         status: 'ok',
         version: '1.0.2'
+        version: '2.0.0'
     });
 });
 

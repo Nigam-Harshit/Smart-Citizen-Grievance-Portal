@@ -1,6 +1,7 @@
 {
   "name": "customer-report-system",
   "version": "1.0.2",
+  "version": "2.0.0",
   "main": "index.js",
   "scripts": {
     "start": "node server.js",

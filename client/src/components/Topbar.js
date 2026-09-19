@@ -8,7 +8,10 @@ const Topbar = ({ title }) => {
     const { user } = useContext(AuthContext);
     const [searchTerm, setSearchTerm] = useState('');
     const [showNotifications, setShowNotifications] = useState(false);
-    const [unreadCount] = useState(2);
+    const [notifications, setNotifications] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [loadingNotifications, setLoadingNotifications] = useState(false);
+    const [notificationError, setNotificationError] = useState(null);
     const [showResults, setShowResults] = useState(false);
     const [searchResults, setSearchResults] = useState({ citizens: [], grievances: [] });
     const searchRef = useRef(null);
@@ -17,6 +20,66 @@ const Topbar = ({ title }) => {
 
     const isAdmin = user?.role === 'admin' || user?.role === 'manager';
     const isOfficer = user?.role === 'officer';
+
+    const fetchNotifications = useCallback(async () => {
+        if (!user) return;
+        try {
+            setLoadingNotifications(true);
+            setNotificationError(null);
+            const res = await API.get('/api/notifications?limit=20');
+            if (res.data?.success) {
+                setNotifications(res.data.notifications || []);
+                setUnreadCount(res.data.unreadCount || 0);
+            }
+        } catch (err) {
+            console.warn('Failed to fetch notifications:', err.message);
+            setNotificationError('Unable to load alerts');
+        } finally {
+            setLoadingNotifications(false);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        fetchNotifications();
+        const timer = setInterval(fetchNotifications, 30000);
+        return () => clearInterval(timer);
+    }, [fetchNotifications]);
+
+    const handleMarkAsRead = async (id) => {
+        try {
+            await API.put(`/api/notifications/${id}/read`);
+            setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        } catch (err) {
+            console.warn('Failed to mark notification read:', err.message);
+        }
+    };
+
+    const handleMarkAllAsRead = async () => {
+        try {
+            await API.put('/api/notifications/mark-all-read');
+            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+            setUnreadCount(0);
+        } catch (err) {
+            console.warn('Failed to mark all notifications read:', err.message);
+        }
+    };
+
+    const handleNotificationClick = async (notif) => {
+        if (!notif.isRead) {
+            await handleMarkAsRead(notif._id);
+        }
+        setShowNotifications(false);
+        if (notif.grievanceId) {
+            if (user?.role === 'citizen') {
+                navigate(`/citizen/grievance/${notif.grievanceId}`);
+            } else if (user?.role === 'officer') {
+                navigate(`/officer/grievance/${notif.grievanceId}`);
+            } else {
+                navigate(`/admin/grievances`);
+            }
+        }
+    };
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -202,7 +265,12 @@ const Topbar = ({ title }) => {
                 {/* Notifications Bell */}
                 <div ref={notificationRef} style={{ position: 'relative' }}>
                     <button 
-                        onClick={() => setShowNotifications(!showNotifications)}
+                        onClick={() => {
+                            const next = !showNotifications;
+                            setShowNotifications(next);
+                            if (next) fetchNotifications();
+                        }}
+                        aria-label={`Notifications (${unreadCount} unread)`}
                         style={{ 
                             background: 'var(--glass-tint)', 
                             border: '1px solid var(--glass-border)', 
@@ -218,7 +286,24 @@ const Topbar = ({ title }) => {
                     >
                         <span style={{ fontSize: '1.1rem' }}>🔔</span>
                         {unreadCount > 0 && (
-                            <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: 'var(--signal-red)', width: '10px', height: '10px', borderRadius: '50%' }}></span>
+                            <span style={{
+                                position: 'absolute',
+                                top: '-2px',
+                                right: '-2px',
+                                background: 'var(--signal-red)',
+                                color: '#FFFFFF',
+                                fontSize: '0.68rem',
+                                fontWeight: 'bold',
+                                minWidth: '16px',
+                                height: '16px',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '0 3px'
+                            }}>
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
                         )}
                     </button>
 
@@ -227,23 +312,93 @@ const Topbar = ({ title }) => {
                             position: 'absolute',
                             top: '46px',
                             right: '0',
-                            width: '300px',
+                            width: '340px',
+                            maxHeight: '420px',
+                            overflowY: 'auto',
                             padding: '1rem',
                             zIndex: 1000,
                             background: 'var(--bg-elevated)',
-                            boxShadow: '0 15px 35px rgba(0,0,0,0.6)'
+                            boxShadow: '0 15px 35px rgba(0,0,0,0.6)',
+                            borderRadius: '12px',
+                            border: '1px solid var(--glass-border)'
                         }}>
-                            <h4 style={{ margin: '0 0 0.8rem 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem', fontSize: '0.9rem' }}>
-                                System Alerts
-                            </h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.82rem' }}>
-                                <div style={{ background: 'rgba(192, 67, 59, 0.12)', padding: '0.6rem 0.8rem', borderRadius: '6px', borderLeft: '3px solid var(--signal-red)' }}>
-                                    <strong style={{ color: 'var(--signal-red)' }}>Attention Required:</strong> Resolution deadline delayed for 2 critical complaints.
-                                </div>
-                                <div style={{ background: 'var(--accent-amber-dim)', padding: '0.6rem 0.8rem', borderRadius: '6px', borderLeft: '3px solid var(--accent-amber)' }}>
-                                    <strong style={{ color: 'var(--accent-amber)' }}>Task:</strong> 3 Field inspections scheduled today.
-                                </div>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                margin: '0 0 0.8rem 0',
+                                borderBottom: '1px solid var(--glass-border)',
+                                paddingBottom: '0.5rem'
+                            }}>
+                                <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.92rem' }}>
+                                    Notifications {unreadCount > 0 && <span style={{ fontSize: '0.75rem', color: 'var(--accent-amber)' }}>({unreadCount} unread)</span>}
+                                </h4>
+                                {unreadCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleMarkAllAsRead}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: 'var(--accent-amber)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.75rem',
+                                            padding: 0,
+                                            textDecoration: 'underline'
+                                        }}
+                                    >
+                                        Mark all read
+                                    </button>
+                                )}
                             </div>
+
+                            {loadingNotifications && notifications.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '1.2rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                                    Loading notifications...
+                                </div>
+                            ) : notificationError ? (
+                                <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--signal-red)', fontSize: '0.82rem' }}>
+                                    ⚠️ {notificationError}
+                                </div>
+                            ) : notifications.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '1.5rem 0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                    No new notifications
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {notifications.map(n => (
+                                        <div
+                                            key={n._id}
+                                            onClick={() => handleNotificationClick(n)}
+                                            style={{
+                                                padding: '0.65rem 0.8rem',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                transition: 'background 0.2s ease',
+                                                background: n.isRead ? 'rgba(255, 255, 255, 0.02)' : 'rgba(201, 150, 44, 0.1)',
+                                                borderLeft: n.isRead ? '3px solid transparent' : '3px solid var(--accent-amber)',
+                                                border: '1px solid rgba(255, 255, 255, 0.05)'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.2rem' }}>
+                                                <strong style={{
+                                                    fontSize: '0.82rem',
+                                                    color: n.isRead ? 'var(--text-primary)' : 'var(--accent-amber)',
+                                                    fontWeight: n.isRead ? '500' : '600'
+                                                }}>
+                                                    {n.title}
+                                                </strong>
+                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                                    {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.3' }}>
+                                                {n.message}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

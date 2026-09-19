@@ -89,8 +89,6 @@ const createStaffUser = async (req, res) => {
             return res.status(400).json({ message: 'Password must be at least 3 characters' });
         }
 
-        const validRoles = ['admin', 'manager', 'officer', 'field_officer'];
-        if (!validRoles.includes(role)) {
         const canonicalRole = normalizeRole(role);
         const validStaffRoles = ['admin', 'manager', 'officer'];
         if (!validStaffRoles.includes(canonicalRole)) {
@@ -108,7 +106,6 @@ const createStaffUser = async (req, res) => {
             email: normEmail,
             password,
             phone: phone || '',
-            role: role === 'field_officer' ? 'officer' : role,
             role: canonicalRole,
             scope: scope || 'All'
         });

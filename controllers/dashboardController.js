@@ -142,9 +142,9 @@ const getDashboardStats = async (req, res) => {
             }
         ]);
 
-        const avgResolutionTimeHours = resTimeAgg.length > 0 && resTimeAgg[0].avgHours
+        avgResolutionTimeHours = resTimeAgg.length > 0 && resTimeAgg[0].avgHours
             ? Math.round(resTimeAgg[0].avgHours * 10) / 10
-            : 0;
+            : avgResolutionTimeHours;
 
         res.status(200).json({
             totalCitizens,

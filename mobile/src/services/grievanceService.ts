@@ -66,11 +66,49 @@ export const postGrievance = async (params: CreateGrievanceParams) => {
       else mimeType = 'image/jpeg';
     }
 
-    formData.append('photo', {
-      uri: params.photoUri,
-      name: filename,
-      type: mimeType,
-    } as any);
+    // Convert local photo URI into a Blob/File compatible with Expo/RN WinterCG FormData
+    let filePart: any;
+    try {
+      const response = await fetch(params.photoUri);
+      const blob = await response.blob();
+      if (typeof File !== 'undefined') {
+        filePart = new File([blob], filename, { type: mimeType });
+      } else {
+        filePart = blob;
+      }
+    } catch {
+      filePart = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = () => {
+          const blob = xhr.response as Blob;
+          if (typeof File !== 'undefined') {
+            resolve(new File([blob], filename, { type: mimeType }));
+          } else {
+            resolve(blob);
+          }
+        };
+        xhr.onerror = () => reject(new Error('Failed to load image file into memory'));
+        xhr.responseType = 'blob';
+        xhr.open('GET', params.photoUri!, true);
+        xhr.send(null);
+      });
+    }
+
+    if (filePart && typeof filePart === 'object') {
+      filePart.name = filename;
+      filePart.type = mimeType;
+      Object.assign(filePart, { uri: params.photoUri });
+      if (!('bytes' in filePart)) {
+        filePart.bytes = async () => {
+          if (typeof filePart.arrayBuffer === 'function') {
+            return new Uint8Array(await filePart.arrayBuffer());
+          }
+          return new Uint8Array();
+        };
+      }
+    }
+
+    formData.append('photo', filePart as any, filename);
 
     return await requestAPI('/api/grievances', 'POST', formData);
   }
